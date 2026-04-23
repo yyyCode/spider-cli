@@ -1,26 +1,12 @@
 # Douyin Video Downloader (抖音视频下载器)
 
-一个基于 Python Playwright 和 CustomTkinter 的抖音视频下载工具。
-
-## exe使用教程
-打开exe文件，复制链接进去，点击下载
-![alt text](455.png)
-
-
+一个基于 Python Playwright 的抖音视频下载工具（命令行版）。
 
 ## ✨ 功能特点
 
-*   **GUI 图形界面**：简洁美观的界面，操作简单。
 *   **自动提取链接**：支持直接粘贴包含中文、表情符号的混合分享文本，自动提取 URL。
 *   **高清无水印**：自动嗅探并下载高清无水印视频。
-*   **离线运行**：提供打包好的 EXE 版本，内嵌所有浏览器依赖，无需安装 Python 或配置环境即可运行。
 *   **智能防检测**：内置 stealth 脚本和动态行为模拟，有效规避反爬检测。
-
-## 📥 下载地址
-
-请前往本仓库的 [Releases 页面](https://github.com/yyyCode/spider/releases) 下载最新版本的 `DouyinDownloader.exe`。
-
-> **注意**：下载后直接运行 `DouyinDownloader.exe` 即可。由于集成了浏览器组件，文件体积较大（约 300MB+），且首次启动需要解压，可能需要等待几秒钟，请耐心等待。
 
 ## 🛠️ 本地开发与运行
 
@@ -43,38 +29,30 @@ pip install -r requirements.txt
 playwright install chromium
 ```
 
-### 4. 运行
-**方式一：运行 GUI**
-```bash
-python gui_app.py
-```
-或者直接运行启动脚本（自动检查依赖）：
+### （推荐）一条命令一键安装依赖（Windows）
+在项目根目录运行：
 ```powershell
-./Start-Spider.ps1
+.\setup.cmd
 ```
 
-**方式二：命令行模式**
+> `setup.cmd` 为纯 CMD 脚本，不依赖 PowerShell。
+
+### 4. 运行
+**命令行模式**
 ```bash
-python cli.py "你的分享链接"
+.\run.cmd
 ```
 
-## 📦 如何打包
+启动后会显示菜单：
+- 推荐交互：**↑↓ 选择，Enter 确认**（基于 `prompt_toolkit`）
+- 如果终端不支持交互式菜单，会自动回退为数字菜单：
+  - 1：配置下载路径（默认当前目录下 `videos/`）
+  - 2：开始爬取视频（粘贴分享口令或链接）
+  - q：退出
 
-如果你修改了代码并想重新打包 EXE：
-
-1. 确保安装了 `pyinstaller`：
-   ```bash
-   pip install pyinstaller
-   ```
-
-2. 运行打包命令（单文件 EXE，包含所有依赖）：
-   ```bash
-   pyinstaller --noconfirm --onefile --windowed --name "DouyinDownloader" --icon "NONE" --hidden-import "playwright" --add-data "stealth.min.js;." --add-data "C:\Users\86178\AppData\Local\ms-playwright\chromium-1200;ms-playwright/chromium-1200" --add-data "C:\Users\86178\AppData\Local\ms-playwright\ffmpeg-1011;ms-playwright/ffmpeg-1011" --add-data "C:\Users\86178\AppData\Local\ms-playwright\chromium_headless_shell-1200;ms-playwright/chromium_headless_shell-1200" gui_app.py
-   ```
-   *(注意：上述命令中的路径可能需要根据你的实际 Playwright 安装位置进行调整)*
-
-
-
+交互说明：
+- **菜单页**：↑↓（或 j/k）移动，Enter 确认，Esc 退出
+- **输入下载路径/链接时**：Enter 提交，**Ctrl+C 取消并返回菜单**（留空表示不修改）
 
 ## 📝 License
 

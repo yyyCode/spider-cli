@@ -19,7 +19,7 @@ import requests
 from playwright.sync_api import sync_playwright
 
 class DouyinSpider:
-    def __init__(self, url, headless=True, log_callback=None):
+    def __init__(self, url, headless=True, log_callback=None, save_dir="videos"):
         self.url = url
         self.headless = headless
         self.log_callback = log_callback
@@ -28,7 +28,7 @@ class DouyinSpider:
             "Referer": "https://www.douyin.com/"
         }
         self.video_candidates = [] # 存储所有候选视频
-        self.save_dir = "videos"
+        self.save_dir = save_dir or "videos"
 
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
