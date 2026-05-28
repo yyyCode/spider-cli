@@ -19,5 +19,8 @@ videos/
 browsers/
 ms-playwright/
 
+# Virtual environment
+.venv/
+
 # VS Code
 .vscode/

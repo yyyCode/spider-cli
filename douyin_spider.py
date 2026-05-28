@@ -10,15 +10,20 @@ if getattr(sys, 'frozen', False):
     if "PLAYWRIGHT_BROWSERS_PATH" not in os.environ:
         base_path = sys._MEIPASS
         os.environ["PLAYWRIGHT_BROWSERS_PATH"] = os.path.join(base_path, "ms-playwright")
-else:
-    # 开发环境：如果未设置，尝试显式指定为默认路径，或者不设置让其自动寻找
-    # 这里我们打印一下，方便调试
-    pass
 
 import requests
 from playwright.sync_api import sync_playwright
 
 class DouyinSpider:
+    MIN_VIDEO_SIZE = 1024 * 1024  # 1MB，过滤广告/小文件
+    CHUNK_SIZE = 8192
+    PAGE_TIMEOUT = 60000
+    VIDEO_WAIT_TIMEOUT = 15000
+    MOUSE_MOVE_WAIT = 2
+    MAX_TITLE_LEN = 50
+    VIEWPORT_WIDTH = 1920
+    VIEWPORT_HEIGHT = 1080
+
     def __init__(self, url, headless=True, log_callback=None, save_dir="videos"):
         self.url = url
         self.headless = headless
@@ -31,7 +36,7 @@ class DouyinSpider:
         self.save_dir = save_dir or "videos"
 
         if not os.path.exists(self.save_dir):
-            os.makedirs(self.save_dir)
+            os.makedirs(self.save_dir, exist_ok=True)
             self.log(f"已创建下载目录: {self.save_dir}")
 
     def log(self, message):
@@ -52,7 +57,7 @@ class DouyinSpider:
                 url = response.url
                 
                 # 过滤掉太小的文件（小于 1MB 的通常是广告或图标特效）
-                if content_length > 1024 * 1024: 
+                if content_length > self.MIN_VIDEO_SIZE:
                     self.log(f"捕获视频流: 大小={content_length/1024/1024:.2f}MB, URL={url[:60]}...")
                     self.video_candidates.append({
                         'url': url,
@@ -60,8 +65,7 @@ class DouyinSpider:
                     })
                 else:
                     self.log(f"忽略小文件(可能是广告): 大小={content_length/1024}KB, URL={url[:60]}...")
-        except Exception as e:
-            # self.log(f"处理响应出错: {e}")
+        except Exception:
             pass
 
     def run(self):
@@ -78,7 +82,7 @@ class DouyinSpider:
 
             # 创建上下文
             context = browser.new_context(
-                viewport={'width': 1920, 'height': 1080},
+                viewport={'width': self.VIEWPORT_WIDTH, 'height': self.VIEWPORT_HEIGHT},
                 user_agent=self.headers["User-Agent"]
             )
             
@@ -101,20 +105,19 @@ class DouyinSpider:
 
             self.log(f"正在访问: {self.url}")
             try:
-                page.goto(self.url, timeout=60000)
+                page.goto(self.url, timeout=self.PAGE_TIMEOUT)
             except Exception as e:
                 self.log(f"页面加载超时或出错: {e}")
 
             # 等待页面加载，特别是视频元素
             try:
-                page.wait_for_selector('video', timeout=15000)
-                # 多等待几秒，确保正片加载（有时候广告先播，正片后播）
-                time.sleep(5) 
-                
+                page.wait_for_selector('video', timeout=self.VIDEO_WAIT_TIMEOUT)
+                page.wait_for_load_state('networkidle', timeout=self.PAGE_TIMEOUT)
+
                 # 模拟鼠标移动，触发加载
                 page.mouse.move(100, 100)
                 page.mouse.move(200, 200)
-                time.sleep(2)
+                time.sleep(self.MOUSE_MOVE_WAIT)
             except:
                 self.log("等待视频元素超时")
 
@@ -130,8 +133,8 @@ class DouyinSpider:
             
             if not title:
                 title = f"douyin_{int(time.time())}"
-            if len(title) > 50:
-                title = title[:50]
+            if len(title) > self.MAX_TITLE_LEN:
+                title = title[:self.MAX_TITLE_LEN]
             
             self.log(f"视频标题: {title}")
 
@@ -173,9 +176,6 @@ class DouyinSpider:
                 self.log("2. 反爬虫检测拦截了请求")
                 self.log("3. 需要登录")
 
-            # 调试模式下不自动关闭，方便看一眼
-            # browser.close() 
-            # 还是关闭吧，不然进程残留
             browser.close()
 
     def download_video(self, url, filepath):
@@ -184,19 +184,10 @@ class DouyinSpider:
             # 抖音视频链接通常需要带上 headers 避免 403
             response = requests.get(url, headers=self.headers, stream=True)
             if response.status_code == 200:
-                total_size = int(response.headers.get('content-length', 0))
-                downloaded_size = 0
-                
                 with open(filepath, 'wb') as f:
-                    for chunk in response.iter_content(chunk_size=8192):
+                    for chunk in response.iter_content(chunk_size=self.CHUNK_SIZE):
                         if chunk:
                             f.write(chunk)
-                            downloaded_size += len(chunk)
-                            # 简单的进度显示
-                            if total_size > 0:
-                                percent = (downloaded_size / total_size) * 100
-                                # 进度条通常不通过 log 输出，避免刷屏，这里简单处理
-                                # self.log(f"\r下载进度: {percent:.2f}%")
                 self.log(f"下载完成！文件已保存至: {filepath}")
             else:
                 self.log(f"下载失败，状态码: {response.status_code}")
