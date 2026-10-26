@@ -9,7 +9,7 @@ set "PY_EXE=%VENV_DIR%\Scripts\python.exe"
 
 where python >nul 2>nul
 if errorlevel 1 (
-  echo [ERROR] 未找到 python，请先安装 Python 3.8+ 并加入 PATH。
+  echo [ERROR] 未找到 python，请先安装 Python 3.10+ 并加入 PATH。
   exit /b 1
 )
 
