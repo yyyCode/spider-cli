@@ -1,4 +1,3 @@
-import re
 import time
 import os
 import sys
@@ -13,6 +12,8 @@ if getattr(sys, 'frozen', False):
 
 import requests
 from playwright.sync_api import sync_playwright
+
+from utils import extract_url_from_text, sanitize_filename
 
 class DouyinSpider:
     MIN_VIDEO_SIZE = 1024 * 1024  # 1MB，过滤广告/小文件
@@ -122,19 +123,16 @@ class DouyinSpider:
                 self.log("等待视频元素超时")
 
             # 获取标题
-            title = page.title()
-            title = re.sub(r'[\\/:*?"<>|]', '', title).strip()
+            title = sanitize_filename(page.title(), self.MAX_TITLE_LEN)
             if not title or title == "抖音":
                 try:
                     desc = page.locator('.desc').first.inner_text()
-                    title = re.sub(r'[\\/:*?"<>|]', '', desc).strip()
-                except:
+                    title = sanitize_filename(desc, self.MAX_TITLE_LEN)
+                except Exception:
                     pass
-            
+
             if not title:
                 title = f"douyin_{int(time.time())}"
-            if len(title) > self.MAX_TITLE_LEN:
-                title = title[:self.MAX_TITLE_LEN]
             
             self.log(f"视频标题: {title}")
 
@@ -193,16 +191,6 @@ class DouyinSpider:
                 self.log(f"下载失败，状态码: {response.status_code}")
         except Exception as e:
             self.log(f"下载出错: {e}")
-
-def extract_url_from_text(text):
-    """
-    从混合文本中提取 URL
-    """
-    # 尝试匹配 http 或 https 开头的链接
-    urls = re.findall(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', text)
-    if urls:
-        return urls[0]
-    return None
 
 if __name__ == "__main__":
     print("="*50)
