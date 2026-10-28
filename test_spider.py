@@ -32,6 +32,13 @@ class TestExtractUrlFromText:
         result = extract_url_from_text(text)
         assert result == "https://v.douyin.com/test/"
 
+    def test_extract_url_keeps_query_parameters(self):
+        url = (
+            "https://www.xiaohongshu.com/discovery/item/6adc"
+            "?xsec_token=ABC=&xsec_source=pc_share"
+        )
+        assert extract_url_from_text(f"分享 {url} 快看") == url
+
 
 class TestDouyinSpider:
     def test_init_defaults(self):
