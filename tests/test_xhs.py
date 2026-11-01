@@ -4,8 +4,8 @@ import json
 
 import pytest
 
-from utils import detect_platform, extract_url_from_text, sanitize_filename
-from xhs_spider import (
+from core.utils import detect_platform, extract_url_from_text, sanitize_filename
+from core.xhs_spider import (
     XhsError,
     XhsSpider,
     extract_note_id,

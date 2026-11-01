@@ -14,7 +14,7 @@ from urllib.parse import urlparse
 
 import requests
 
-from utils import sanitize_filename
+from .utils import sanitize_filename
 
 MOBILE_UA = (
     "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 "

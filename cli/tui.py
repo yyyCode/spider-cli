@@ -1,18 +1,18 @@
-from douyin_spider import DouyinSpider
-from xhs_spider import XhsSpider
-from utils import detect_platform, extract_url_from_text
-import sys
-import os
-import traceback
+"""Terminal interaction helpers: interactive menus and line input."""
 
-def _tui_available():
+import os
+import sys
+
+
+def tui_available():
     try:
         import prompt_toolkit  # noqa: F401
         return sys.stdin.isatty() and sys.stdout.isatty()
     except Exception:
         return False
 
-def _menu_tui(save_dir: str) -> str:
+
+def menu_tui(save_dir: str) -> str:
     """
     返回 action: "set_path" | "start" | "quit"
     """
@@ -96,7 +96,8 @@ def _menu_tui(save_dir: str) -> str:
     result = app.run()
     return result or "quit"
 
-def _input_tui(prompt_text: str, default: str = "") -> str:
+
+def input_tui(prompt_text: str, default: str = "") -> str:
     """
     行内输入（非对话框），更接近 Claude Code 风格。
     - Enter: 提交
@@ -112,7 +113,8 @@ def _input_tui(prompt_text: str, default: str = "") -> str:
     except (KeyboardInterrupt, EOFError):
         return ""
 
-def _menu_plain(save_dir: str) -> str:
+
+def menu_plain(save_dir: str) -> str:
     print("\n当前下载路径:", save_dir)
     print("请选择操作：")
     print("  1. 配置下载路径")
@@ -132,7 +134,7 @@ def _menu_plain(save_dir: str) -> str:
     return "invalid"
 
 
-def _try_tui(use_tui_ref, tui_func, plain_func, fallback_msg):
+def try_tui(use_tui_ref, tui_func, plain_func, fallback_msg):
     if use_tui_ref[0]:
         try:
             return tui_func()
@@ -142,105 +144,6 @@ def _try_tui(use_tui_ref, tui_func, plain_func, fallback_msg):
     return plain_func()
 
 
-def _plain_input(prompt_text, prefix=""):
+def plain_input(prompt_text, prefix=""):
     print(f"{prefix}{prompt_text} ", end="", flush=True)
     return sys.stdin.readline().strip()
-
-
-def main():
-    print("=" * 60)
-    print("抖音/小红书链接爬虫命令行版 v1.0")
-    print("功能：下载抖音视频，以及小红书视频或图集")
-    print("提示：小红书登录墙笔记可设置环境变量 XHS_COOKIE")
-    use_tui = _tui_available()
-    if use_tui:
-        print("操作：↑↓ 选择，Enter 确认；Esc 退出。")
-        print("提示：在‘输入路径/链接’时，使用 Ctrl+C 取消并返回菜单。")
-    else:
-        print("操作：启动后选择功能。输入 'q' 退出。（可选安装 prompt_toolkit 获得↑↓选择菜单）")
-    print("=" * 60)
-
-    save_dir = os.path.join(os.getcwd(), "videos")
-    use_tui_ref = [use_tui]
-
-    while True:
-        try:
-            action = _try_tui(
-                use_tui_ref,
-                lambda: _menu_tui(save_dir),
-                lambda: _menu_plain(save_dir),
-                "交互式菜单不可用，已回退到数字菜单",
-            )
-
-            if not action:
-                continue
-
-            if action == "quit":
-                print("程序已退出。")
-                break
-
-            if action == "invalid":
-                print("无效选项，请重新选择。")
-                continue
-
-            if action == "set_path":
-                new_dir = _try_tui(
-                    use_tui_ref,
-                    lambda: _input_tui("请输入下载路径（留空则不修改）:", default=save_dir),
-                    lambda: _plain_input("请输入下载路径(留空则不修改):"),
-                    "交互式输入不可用，已回退到普通输入",
-                )
-
-                if not new_dir:
-                    print("下载路径未修改。")
-                    continue
-
-                new_dir = os.path.expandvars(os.path.expanduser(new_dir))
-                os.makedirs(new_dir, exist_ok=True)
-                save_dir = new_dir
-                print("下载路径已设置为:", save_dir)
-                continue
-
-            if action == "start":
-                raw_input = _try_tui(
-                    use_tui_ref,
-                    lambda: _input_tui("请粘贴分享口令或链接："),
-                    lambda: _plain_input("请输入分享口令或链接:", prefix="\n"),
-                    "交互式输入不可用，已回退到普通输入",
-                )
-
-                if not raw_input:
-                    continue
-
-                url = extract_url_from_text(raw_input)
-                if not url:
-                    print("错误: 未识别到有效链接，请重新输入。")
-                    continue
-
-                platform = detect_platform(url)
-                if platform == "douyin":
-                    spider = DouyinSpider(url, save_dir=save_dir)
-                elif platform == "xhs":
-                    spider = XhsSpider(
-                        url,
-                        save_dir=save_dir,
-                        cookie=os.environ.get("XHS_COOKIE"),
-                    )
-                else:
-                    print("错误: 仅支持抖音和小红书链接。")
-                    continue
-
-                print(f"正在启动爬虫抓取: {url}")
-                spider.run()
-                print("----------------------------------------")
-                continue
-
-        except KeyboardInterrupt:
-            print("\n程序已退出")
-            break
-        except Exception as e:
-            print(f"发生未预期的错误: {e}")
-            traceback.print_exc()
-
-if __name__ == "__main__":
-    main()

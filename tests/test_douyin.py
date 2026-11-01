@@ -1,6 +1,6 @@
-"""Tests for douyin_spider module."""
-import pytest
-from douyin_spider import DouyinSpider, extract_url_from_text
+"""Tests for the Douyin spider and shared URL helpers."""
+from core.douyin_spider import DouyinSpider
+from core.utils import extract_url_from_text
 
 
 class TestExtractUrlFromText:

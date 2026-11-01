@@ -13,7 +13,7 @@ if getattr(sys, 'frozen', False):
 import requests
 from playwright.sync_api import sync_playwright
 
-from utils import extract_url_from_text, sanitize_filename
+from .utils import extract_url_from_text, sanitize_filename
 
 class DouyinSpider:
     MIN_VIDEO_SIZE = 1024 * 1024  # 1MB，过滤广告/小文件
@@ -92,6 +92,12 @@ class DouyinSpider:
             stealth_path = "stealth.min.js"
             if getattr(sys, 'frozen', False):
                 stealth_path = os.path.join(sys._MEIPASS, "stealth.min.js")
+            else:
+                # core/ 在仓库根目录下一层，优先使用项目根目录的脚本
+                project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                candidate = os.path.join(project_root, "stealth.min.js")
+                if os.path.exists(candidate):
+                    stealth_path = candidate
             
             if os.path.exists(stealth_path):
                 self.log(f"加载反爬脚本: {stealth_path}")
