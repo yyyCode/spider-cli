@@ -29,6 +29,6 @@ echo 安装 Playwright Chromium（首次可能较慢）
 
 echo.
 echo 完成。
-echo 运行命令行: %PY_EXE% cli.py
+echo 运行命令行: %PY_EXE% -m cli
 endlocal
 

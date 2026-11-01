@@ -87,7 +87,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 playwright install chromium
 
-python cli.py
+python -m cli
 ```
 
 > 如果终端没有安装 `prompt_toolkit`，程序会使用数字菜单，功能不受影响。
@@ -139,10 +139,10 @@ Cookie 可以在浏览器登录小红书后，从开发者工具 Network 面板�
 
 ```bash
 # 抖音
-python douyin_spider.py
+python -m core.douyin_spider
 
 # 小红书
-python xhs_spider.py
+python -m core.xhs_spider
 ```
 
 按提示粘贴分享文本即可，文件会保存到 `videos/`。
@@ -150,9 +150,9 @@ python xhs_spider.py
 ### 作为库调用
 
 ```python
-from xhs_spider import XhsSpider
-from douyin_spider import DouyinSpider
-from utils import detect_platform, extract_url_from_text
+from core.xhs_spider import XhsSpider
+from core.douyin_spider import DouyinSpider
+from core.utils import detect_platform, extract_url_from_text
 
 text = "复制来的分享口令 https://... ..."
 url = extract_url_from_text(text)
@@ -197,13 +197,18 @@ spider = XhsSpider(url, log_callback=print)
 
 ```text
 spider-cli/
-├── cli.py                 # 命令行入口、平台识别与分发
-├── douyin_spider.py       # 抖音爬虫（Playwright）
-├── xhs_spider.py          # 小红书爬虫（requests）
-├── utils.py               # 链接提取、平台识别、文件名清理
+├── core/                  # 平台抓取逻辑，与界面无关
+│   ├── douyin_spider.py   # 抖音爬虫（Playwright）
+│   ├── xhs_spider.py      # 小红书爬虫（requests）
+│   └── utils.py           # 链接提取、平台识别、文件名清理
+├── cli/                   # 命令行前端
+│   ├── main.py            # 入口、平台识别与分发
+│   └── tui.py             # prompt_toolkit 菜单与行内输入
+├── tests/                 # 单元测试
+│   ├── test_douyin.py
+│   └── test_xhs.py
 ├── stealth.min.js         # 抖音反检测注入脚本
-├── test_spider.py         # 抖音与共享工具测试
-├── test_xhs_spider.py     # 小红书解析测试
+├── pytest.ini             # 测试路径配置
 ├── requirements.txt       # 运行依赖
 ├── requirements-dev.txt   # 打包依赖
 ├── setup.cmd              # Windows 一键安装
@@ -211,6 +216,8 @@ spider-cli/
 ├── docs/                  # 设计与实施文档
 └── videos/                # 默认下载目录（已加入 .gitignore）
 ```
+
+`core/` 不依赖任何界面代码。后续新增 `ui/`（桌面 GUI）或 `web/`（Web 前端/API）时，直接导入 `core` 即可复用抓取逻辑，新前端只需实现自己的入口。
 
 ## 配置项
 

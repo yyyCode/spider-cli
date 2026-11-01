@@ -10,6 +10,6 @@ if not exist "%PY_EXE%" (
   exit /b 1
 )
 
-"%PY_EXE%" cli.py
+"%PY_EXE%" -m cli
 endlocal
 
