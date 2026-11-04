@@ -266,45 +266,51 @@ class XhsSpider:
             raise XhsError("笔记数据为空")
         return media
 
+    def resolve(self):
+        """抓取并解析笔记，返回 NoteMedia；失败抛出 XhsError。"""
+        final_url, html = self.fetch_html()
+        return self.parse(final_url, html)
+
     def run(self):
         try:
-            final_url, html = self.fetch_html()
-            media = self.parse(final_url, html)
+            media = self.resolve()
             self.log(f"笔记: {media.title}（{'视频' if media.kind == 'video' else '图集'}）")
             return self.download_note(media)
         except XhsError as exc:
             self.log(f"失败: {exc}")
-            return False
+            return None
         except requests.RequestException as exc:
             self.log(f"网络请求失败: {exc}")
-            return False
+            return None
         except OSError as exc:
             self.log(f"文件写入失败: {exc}")
-            return False
+            return None
 
     def download_note(self, media):
         out_dir = os.path.join(self.save_dir, media.title)
         os.makedirs(out_dir, exist_ok=True)
         if media.kind == "video":
             return self._download_video(media, out_dir)
-        return self._download_images(media, out_dir)
+        if self._download_images(media, out_dir):
+            return out_dir
+        return None
 
     def _download_video(self, media, out_dir):
         if not media.video_urls:
             self.log("未找到视频地址，可能是动图或受限内容")
-            return False
+            return None
 
         filepath = os.path.join(out_dir, f"{media.title}.mp4")
         if self._is_complete(filepath):
             self.log(f"已存在，跳过: {filepath}")
-            return True
+            return filepath
 
         for url in media.video_urls:
             if self._download_file(url, filepath, expect="video"):
                 self.log(f"下载完成: {filepath}")
-                return True
+                return filepath
         self.log("视频下载失败: 所有候选地址均不可用")
-        return False
+        return None
 
     def _download_images(self, media, out_dir):
         if not media.image_urls:
