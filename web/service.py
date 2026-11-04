@@ -3,6 +3,7 @@
 import os
 import shutil
 import tempfile
+import time
 from dataclasses import dataclass
 
 from core.douyin_spider import DouyinSpider
@@ -72,14 +73,25 @@ def _download_xhs(spider, logs):
     return path
 
 
+def _request_log(logs):
+    """记录日志并输出到服务端控制台，便于排查耗时和失败原因。"""
+    def log(message):
+        logs.append(message)
+        print(f"[web] {message}", flush=True)
+
+    return log
+
+
 def download_video(raw_url):
     """同步执行一次视频下载，文件保存在本次请求的临时目录中。"""
     url, platform = _resolve_input(raw_url)
     temp_dir = tempfile.mkdtemp(prefix="spider-web-")
     logs = []
+    log = _request_log(logs)
+    started = time.time()
 
     try:
-        spider = create_spider(platform, url, temp_dir, logs.append)
+        spider = create_spider(platform, url, temp_dir, log)
         if platform == "douyin":
             path = _download_douyin(spider, logs)
         else:
@@ -91,6 +103,7 @@ def download_video(raw_url):
                 502,
             )
 
+        log(f"请求完成，总耗时 {time.time() - started:.1f}s")
         return DownloadedFile(
             path=path,
             filename=os.path.basename(path),

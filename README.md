@@ -120,7 +120,7 @@ curl -X POST http://127.0.0.1:8000/api/download \
   -d '{"url": "https://v.douyin.com/xxxx/"}'
 ```
 
-成功时直接返回 `video/mp4` 文件流；失败返回 JSON `{"detail": "..."}`。当前网页版仅支持视频，小红书图集会返回 400。抖音解析需要启动无头浏览器，通常耗时 10–30 秒。
+成功时直接返回 `video/mp4` 文件流；失败返回 JSON `{"detail": "..."}`。当前网页版仅支持视频，小红书图集会返回 400。抖音解析需要启动无头浏览器，捕获到视频流后会立即开始下载；服务端控制台会打印各阶段耗时，便于排查。
 
 ## 使用说明
 
@@ -209,10 +209,11 @@ spider = XhsSpider(url, log_callback=print)
 
 1. 用正则从输入文本中提取第一个 http/https 链接
 2. Playwright 启动 Chromium，设置 1920x1080 视口和桌面 UA，并注入 `stealth.min.js`
-3. 打开视频页，监听响应中的 `video/mp4` 内容或 `.mp4` 请求，记录大小超过 1 MB 的候选
-4. 等待 `video` 元素和 `networkidle`，期间移动鼠标触发资源加载
+3. 打开视频页，只等待 DOM 就绪（不等 `load`/`networkidle`），监听响应中的 `video/mp4` 内容或 `.mp4` 请求，记录大小超过 1 MB 的候选
+4. 轮询监听结果，捕获到候选后立即继续；没有候选时最多等 30 秒，再用页面元素回退
 5. 候选按大小排序取最大的一条；没有候选时回退读取 `video` 或 `source` 标签的 `src`
-6. 使用 `requests` 流式下载，请求头带上 `Referer` 和 UA，保存为 `<标题>.mp4`
+6. 关闭浏览器并把浏览器 Cookie 带入请求头，避免浏览器和下载任务争抢带宽
+7. 使用 `requests` 流式下载（64 KB 分块），请求头带上 `Referer`、UA 和 Cookie，保存为 `<标题>.mp4`
 
 小红书：
 
@@ -263,10 +264,10 @@ spider-cli/
 | 常量 | 默认值 | 作用 |
 | --- | --- | --- |
 | `MIN_VIDEO_SIZE` | 1 MB | 小于该体积的视频流会被忽略 |
-| `CHUNK_SIZE` | 8192 | 下载分块大小 |
-| `PAGE_TIMEOUT` | 60 秒 | 页面加载超时 |
-| `VIDEO_WAIT_TIMEOUT` | 15 秒 | 等待 `video` 元素的超时 |
-| `MOUSE_MOVE_WAIT` | 2 秒 | 模拟鼠标后的等待时间 |
+| `CHUNK_SIZE` | 64 KB | 下载分块大小 |
+| `PAGE_TIMEOUT` | 60 秒 | 页面导航超时（只等 DOM 就绪） |
+| `CANDIDATE_WAIT_TIMEOUT` | 30 秒 | 等待候选视频流的最长时间，捕获到就提前结束 |
+| `DOWNLOAD_TIMEOUT` | (10, 120) 秒 | 下载的连接超时和读取超时 |
 | `MAX_TITLE_LEN` | 50 | 文件名最大长度 |
 | `VIEWPORT_WIDTH` / `VIEWPORT_HEIGHT` | 1920 x 1080 | 浏览器视口尺寸 |
 
