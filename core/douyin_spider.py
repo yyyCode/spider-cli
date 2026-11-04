@@ -17,10 +17,11 @@ from .utils import extract_url_from_text, sanitize_filename
 
 class DouyinSpider:
     MIN_VIDEO_SIZE = 1024 * 1024  # 1MB，过滤广告/小文件
-    CHUNK_SIZE = 8192
+    CHUNK_SIZE = 64 * 1024
     PAGE_TIMEOUT = 60000
-    VIDEO_WAIT_TIMEOUT = 15000
-    MOUSE_MOVE_WAIT = 2
+    CANDIDATE_WAIT_TIMEOUT = 30000  # 毫秒；捕获到候选后立即继续
+    CANDIDATE_POLL_INTERVAL = 250  # 毫秒
+    DOWNLOAD_TIMEOUT = (10, 120)  # (连接超时, 读取超时)
     MAX_TITLE_LEN = 50
     VIEWPORT_WIDTH = 1920
     VIEWPORT_HEIGHT = 1080
@@ -69,13 +70,51 @@ class DouyinSpider:
         except Exception:
             pass
 
+    def _launch_browser(self, p):
+        """优先使用完整 Chromium 的新无头模式。
+
+        Playwright 默认会启动独立的 chrome-headless-shell.exe，Windows 首次
+        运行时可能弹出安全/防火墙确认，非交互部署会卡住。完整 Chromium 可以
+        避开这个额外二进制，也更接近真实浏览器；channel 不可用时回退默认启动。
+        """
+        if self.headless:
+            try:
+                return p.chromium.launch(headless=True, channel="chromium")
+            except Exception as e:
+                self.log(f"完整 Chromium 启动失败，回退默认 headless: {e}")
+        args = [] if self.headless else ['--start-maximized']
+        return p.chromium.launch(headless=self.headless, args=args)
+
+    def _navigate(self, page):
+        """只等 DOM 就绪，不等待 load/networkidle。
+
+        抖音页面会持续加载媒体和统计请求，等 ``load`` 实测可能要几十秒，
+        而视频流地址在 DOM 就绪、脚本开始播放后就能通过网络监听拿到。
+        """
+        return page.goto(
+            self.url,
+            timeout=self.PAGE_TIMEOUT,
+            wait_until="domcontentloaded",
+        )
+
+    def _wait_for_candidates(self, page):
+        """轮询网络监听结果，命中候选后立即返回，避免固定等待。"""
+        deadline = time.time() + self.CANDIDATE_WAIT_TIMEOUT / 1000
+        while time.time() < deadline and not self.video_candidates:
+            page.wait_for_timeout(self.CANDIDATE_POLL_INTERVAL)
+        return bool(self.video_candidates)
+
+    def _cookie_header(self, context):
+        """把浏览器 Cookie 转成 requests 可用的请求头。"""
+        return "; ".join(
+            f"{cookie['name']}={cookie['value']}" for cookie in context.cookies()
+        )
+
     def run(self):
         with sync_playwright() as p:
             self.log(f"正在启动浏览器 (Headless={self.headless})...")
-            # 修改：关闭 headless 模式，模拟真实用户，减少被识别为机器人的概率
-            # 也可以方便观察发生了什么
             try:
-                browser = p.chromium.launch(headless=self.headless, args=['--start-maximized'] if not self.headless else [])
+                browser = self._launch_browser(p)
             except Exception as e:
                 self.log(f"启动浏览器失败: {e}")
                 self.log("尝试使用 playwright install 安装浏览器...")
@@ -111,22 +150,34 @@ class DouyinSpider:
             page.on("response", self.handle_response)
 
             self.log(f"正在访问: {self.url}")
+            nav_start = time.time()
             try:
-                page.goto(self.url, timeout=self.PAGE_TIMEOUT)
+                self._navigate(page)
+                self.log(f"页面已就绪，耗时 {time.time() - nav_start:.1f}s")
             except Exception as e:
                 self.log(f"页面加载超时或出错: {e}")
 
-            # 等待页面加载，特别是视频元素
+            wait_start = time.time()
+            self.log("等待视频流...")
             try:
-                page.wait_for_selector('video', timeout=self.VIDEO_WAIT_TIMEOUT)
-                page.wait_for_load_state('networkidle', timeout=self.PAGE_TIMEOUT)
-
-                # 模拟鼠标移动，触发加载
+                # 模拟鼠标移动，触发视频加载
                 page.mouse.move(100, 100)
                 page.mouse.move(200, 200)
-                time.sleep(self.MOUSE_MOVE_WAIT)
-            except:
-                self.log("等待视频元素超时")
+                captured = self._wait_for_candidates(page)
+            except Exception as e:
+                self.log(f"等待视频流出错: {e}")
+                captured = bool(self.video_candidates)
+
+            if captured:
+                self.log(
+                    f"捕获候选视频 {len(self.video_candidates)} 个，"
+                    f"耗时 {time.time() - wait_start:.1f}s"
+                )
+            else:
+                self.log(
+                    f"未捕获候选视频，尝试页面元素回退"
+                    f"（等待 {time.time() - wait_start:.1f}s）"
+                )
 
             # 获取标题
             title = sanitize_filename(page.title(), self.MAX_TITLE_LEN)
@@ -170,33 +221,55 @@ class DouyinSpider:
                 except Exception as e:
                     self.log(f"页面解析出错: {e}")
 
+            # 先关闭浏览器再下载：否则浏览器可能还在拉取同一视频流，
+            # 与 requests 争抢带宽，导致下载时间翻倍。
+            cookie_header = self._cookie_header(context)
+            if cookie_header:
+                self.headers["Cookie"] = cookie_header
+            browser.close()
+
+            result = None
             if target_url:
                 filename = f"{title}.mp4"
                 filepath = os.path.join(self.save_dir, filename)
-                self.download_video(target_url, filepath)
+                result = self.download_video(target_url, filepath)
             else:
                 self.log("未能获取到视频链接。可能原因：")
                 self.log("1. 视频是 blob 格式（加密流），当前爬虫暂不支持")
                 self.log("2. 反爬虫检测拦截了请求")
                 self.log("3. 需要登录")
 
-            browser.close()
+            return result
 
     def download_video(self, url, filepath):
         self.log(f"开始下载: {filepath}")
+        started = time.time()
         try:
-            # 抖音视频链接通常需要带上 headers 避免 403
-            response = requests.get(url, headers=self.headers, stream=True)
-            if response.status_code == 200:
-                with open(filepath, 'wb') as f:
-                    for chunk in response.iter_content(chunk_size=self.CHUNK_SIZE):
-                        if chunk:
-                            f.write(chunk)
-                self.log(f"下载完成！文件已保存至: {filepath}")
-            else:
+            # 抖音视频链接通常需要带上 headers（含 Cookie）避免 403
+            with requests.get(
+                url,
+                headers=self.headers,
+                stream=True,
+                timeout=self.DOWNLOAD_TIMEOUT,
+            ) as response:
+                if response.status_code == 200:
+                    size = 0
+                    with open(filepath, 'wb') as f:
+                        for chunk in response.iter_content(chunk_size=self.CHUNK_SIZE):
+                            if chunk:
+                                f.write(chunk)
+                                size += len(chunk)
+                    elapsed = max(time.time() - started, 0.001)
+                    speed = size / 1024 / 1024 / elapsed
+                    self.log(
+                        f"下载完成！{size / 1024 / 1024:.2f}MB，"
+                        f"耗时 {elapsed:.1f}s，平均 {speed:.2f}MB/s"
+                    )
+                    return filepath
                 self.log(f"下载失败，状态码: {response.status_code}")
         except Exception as e:
             self.log(f"下载出错: {e}")
+        return None
 
 if __name__ == "__main__":
     print("="*50)

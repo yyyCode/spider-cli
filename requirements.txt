@@ -1,3 +1,5 @@
 playwright
 requests
 prompt_toolkit
+fastapi
+uvicorn[standard]

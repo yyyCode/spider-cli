@@ -61,5 +61,181 @@ class TestDouyinSpider:
 
     def test_class_constants(self):
         assert DouyinSpider.MIN_VIDEO_SIZE == 1024 * 1024
-        assert DouyinSpider.CHUNK_SIZE == 8192
+        assert DouyinSpider.CHUNK_SIZE == 64 * 1024
+        assert DouyinSpider.CANDIDATE_WAIT_TIMEOUT == 30000
+        assert DouyinSpider.DOWNLOAD_TIMEOUT == (10, 120)
         assert DouyinSpider.MAX_TITLE_LEN == 50
+
+
+class _FakeDownloadResponse:
+    status_code = 200
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        return False
+
+    def iter_content(self, chunk_size=8192):
+        yield b"fake-video-bytes"
+
+
+class _ForbiddenResponse:
+    status_code = 403
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        return False
+
+    def iter_content(self, chunk_size=8192):
+        yield b""
+
+
+class TestDouyinDownload:
+    def test_download_video_returns_path(self, monkeypatch, tmp_path):
+        spider = DouyinSpider("https://example.com", save_dir=str(tmp_path))
+        monkeypatch.setattr(
+            "core.douyin_spider.requests.get",
+            lambda *args, **kwargs: _FakeDownloadResponse(),
+        )
+        target = tmp_path / "video.mp4"
+
+        result = spider.download_video("https://cdn.example.com/x.mp4", str(target))
+
+        assert result == str(target)
+        assert target.read_bytes() == b"fake-video-bytes"
+
+    def test_download_video_returns_none_on_http_error(self, monkeypatch, tmp_path):
+        spider = DouyinSpider("https://example.com", save_dir=str(tmp_path))
+        monkeypatch.setattr(
+            "core.douyin_spider.requests.get",
+            lambda *args, **kwargs: _ForbiddenResponse(),
+        )
+        target = tmp_path / "x.mp4"
+
+        result = spider.download_video("https://cdn.example.com/x.mp4", str(target))
+
+        assert result is None
+        assert not target.exists()
+
+
+class _FakeChromium:
+    def __init__(self, fail_channel=False):
+        self.calls = []
+        self.fail_channel = fail_channel
+
+    def launch(self, **kwargs):
+        self.calls.append(kwargs)
+        if self.fail_channel and kwargs.get("channel") == "chromium":
+            raise RuntimeError("channel not installed")
+        return "browser"
+
+
+class _FakePlaywright:
+    def __init__(self, fail_channel=False):
+        self.chromium = _FakeChromium(fail_channel)
+
+
+class TestDouyinBrowserLaunch:
+    def test_headless_prefers_full_chromium(self, tmp_path):
+        spider = DouyinSpider("https://example.com", save_dir=str(tmp_path))
+        playwright = _FakePlaywright()
+
+        assert spider._launch_browser(playwright) == "browser"
+        assert playwright.chromium.calls == [
+            {"headless": True, "channel": "chromium"}
+        ]
+
+    def test_headless_falls_back_when_channel_unavailable(self, tmp_path):
+        spider = DouyinSpider("https://example.com", save_dir=str(tmp_path))
+        playwright = _FakePlaywright(fail_channel=True)
+
+        assert spider._launch_browser(playwright) == "browser"
+        assert playwright.chromium.calls == [
+            {"headless": True, "channel": "chromium"},
+            {"headless": True, "args": []},
+        ]
+
+    def test_headed_uses_start_maximized(self, tmp_path):
+        spider = DouyinSpider(
+            "https://example.com", headless=False, save_dir=str(tmp_path)
+        )
+        playwright = _FakePlaywright()
+
+        spider._launch_browser(playwright)
+
+        assert playwright.chromium.calls == [
+            {"headless": False, "args": ["--start-maximized"]}
+        ]
+
+
+class _FakePage:
+    def __init__(self):
+        self.goto_calls = []
+        self.wait_calls = []
+        self.on_wait = None
+
+    def goto(self, url, **kwargs):
+        self.goto_calls.append((url, kwargs))
+        return "response"
+
+    def wait_for_timeout(self, ms):
+        self.wait_calls.append(ms)
+        if self.on_wait:
+            self.on_wait(len(self.wait_calls))
+
+
+class _FakeContext:
+    def __init__(self, cookies=None):
+        self._cookies = cookies or []
+
+    def cookies(self):
+        return self._cookies
+
+
+class TestDouyinNavigation:
+    def test_navigate_returns_after_domcontentloaded(self, tmp_path):
+        spider = DouyinSpider("https://v.douyin.com/abc/", save_dir=str(tmp_path))
+        page = _FakePage()
+
+        spider._navigate(page)
+
+        assert page.goto_calls == [
+            (
+                "https://v.douyin.com/abc/",
+                {"timeout": spider.PAGE_TIMEOUT, "wait_until": "domcontentloaded"},
+            )
+        ]
+
+    def test_wait_for_candidates_returns_as_soon_as_video_found(self, tmp_path):
+        spider = DouyinSpider("https://example.com", save_dir=str(tmp_path))
+        page = _FakePage()
+
+        def add_candidate(wait_number):
+            if wait_number == 2:
+                spider.video_candidates.append({"url": "x", "size": 2})
+
+        page.on_wait = add_candidate
+
+        assert spider._wait_for_candidates(page) is True
+        assert page.wait_calls == [250, 250]
+
+    def test_wait_for_candidates_returns_false_on_timeout(self, tmp_path, monkeypatch):
+        spider = DouyinSpider("https://example.com", save_dir=str(tmp_path))
+        monkeypatch.setattr(DouyinSpider, "CANDIDATE_WAIT_TIMEOUT", 1)
+        page = _FakePage()
+
+        assert spider._wait_for_candidates(page) is False
+
+    def test_cookie_header_joins_context_cookies(self, tmp_path):
+        spider = DouyinSpider("https://example.com", save_dir=str(tmp_path))
+        context = _FakeContext(
+            [
+                {"name": "sessionid", "value": "abc"},
+                {"name": "ttwid", "value": "123"},
+            ]
+        )
+
+        assert spider._cookie_header(context) == "sessionid=abc; ttwid=123"

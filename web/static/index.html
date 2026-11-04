@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spider CLI · 视频下载</title>
+  <link rel="icon" href="/assets/logo-128.png">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="aurora aurora--one"></div>
+  <div class="aurora aurora--two"></div>
+  <div class="aurora aurora--three"></div>
+
+  <main class="shell">
+    <section class="card">
+      <header class="card__header">
+        <img class="logo" src="/assets/logo.png" alt="Spider CLI logo">
+        <div>
+          <h1>视频下载器</h1>
+          <p class="subtitle">粘贴抖音或小红书链接，直接下载视频文件</p>
+        </div>
+      </header>
+
+      <form id="download-form" class="form" autocomplete="off">
+        <label class="field">
+          <span class="field__label">链接或分享口令</span>
+          <textarea id="url-input" rows="3"
+            placeholder="例如：7.43 复制打开抖音，看看... https://v.douyin.com/xxxx/"
+            spellcheck="false"></textarea>
+        </label>
+
+        <div class="meta">
+          <span id="platform-badge" class="badge badge--idle">等待输入</span>
+          <span class="hint">Ctrl + Enter 快速提交</span>
+        </div>
+
+        <button id="submit-btn" type="submit" class="button" disabled>
+          <span class="button__label">解析并下载</span>
+          <span class="spinner" aria-hidden="true"></span>
+        </button>
+      </form>
+
+      <section id="status" class="status" hidden>
+        <div class="status__row">
+          <p id="status-text" class="status__text"></p>
+          <span id="status-percent" class="status__percent"></span>
+        </div>
+        <div class="progress" id="progress" hidden>
+          <div id="progress-bar" class="progress__bar"></div>
+        </div>
+      </section>
+
+      <p class="footnote">当前仅支持视频；小红书图集暂不支持。抖音解析可能需要 10–30 秒。</p>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

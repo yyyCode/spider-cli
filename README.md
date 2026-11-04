@@ -92,6 +92,36 @@ python -m cli
 
 > 如果终端没有安装 `prompt_toolkit`，程序会使用数字菜单，功能不受影响。
 
+## Web 服务
+
+除命令行外，项目还提供基于 FastAPI 的网页版。启动后浏览器打开 `http://127.0.0.1:8000`，粘贴抖音或小红书链接即可下载视频。
+
+```powershell
+# Windows 一键启动
+.\run-web.cmd
+
+# 或手动启动
+.venv\Scripts\python.exe -m web
+```
+
+```bash
+# macOS / Linux
+python -m web
+
+# 自定义监听地址
+python -m web --host 0.0.0.0 --port 9000
+```
+
+接口示例：
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/download \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://v.douyin.com/xxxx/"}'
+```
+
+成功时直接返回 `video/mp4` 文件流；失败返回 JSON `{"detail": "..."}`。当前网页版仅支持视频，小红书图集会返回 400。抖音解析需要启动无头浏览器，捕获到视频流后会立即开始下载；服务端控制台会打印各阶段耗时，便于排查。
+
 ## 使用说明
 
 启动后可以选择三个操作：
@@ -179,10 +209,11 @@ spider = XhsSpider(url, log_callback=print)
 
 1. 用正则从输入文本中提取第一个 http/https 链接
 2. Playwright 启动 Chromium，设置 1920x1080 视口和桌面 UA，并注入 `stealth.min.js`
-3. 打开视频页，监听响应中的 `video/mp4` 内容或 `.mp4` 请求，记录大小超过 1 MB 的候选
-4. 等待 `video` 元素和 `networkidle`，期间移动鼠标触发资源加载
+3. 打开视频页，只等待 DOM 就绪（不等 `load`/`networkidle`），监听响应中的 `video/mp4` 内容或 `.mp4` 请求，记录大小超过 1 MB 的候选
+4. 轮询监听结果，捕获到候选后立即继续；没有候选时最多等 30 秒，再用页面元素回退
 5. 候选按大小排序取最大的一条；没有候选时回退读取 `video` 或 `source` 标签的 `src`
-6. 使用 `requests` 流式下载，请求头带上 `Referer` 和 UA，保存为 `<标题>.mp4`
+6. 关闭浏览器并把浏览器 Cookie 带入请求头，避免浏览器和下载任务争抢带宽
+7. 使用 `requests` 流式下载（64 KB 分块），请求头带上 `Referer`、UA 和 Cookie，保存为 `<标题>.mp4`
 
 小红书：
 
@@ -204,20 +235,27 @@ spider-cli/
 ├── cli/                   # 命令行前端
 │   ├── main.py            # 入口、平台识别与分发
 │   └── tui.py             # prompt_toolkit 菜单与行内输入
+├── web/                   # FastAPI Web 前端
+│   ├── app.py             # 路由、静态资源、并发限制
+│   ├── service.py         # 下载编排与临时目录管理
+│   └── static/            # 单页界面（HTML/CSS/JS）
 ├── tests/                 # 单元测试
 │   ├── test_douyin.py
-│   └── test_xhs.py
+│   ├── test_xhs.py
+│   ├── test_web_service.py
+│   └── test_web_app.py
 ├── stealth.min.js         # 抖音反检测注入脚本
 ├── pytest.ini             # 测试路径配置
 ├── requirements.txt       # 运行依赖
 ├── requirements-dev.txt   # 打包依赖
 ├── setup.cmd              # Windows 一键安装
-├── run.cmd                # Windows 一键运行
+├── run.cmd                # Windows 一键运行命令行
+├── run-web.cmd            # Windows 一键运行 Web 服务
 ├── docs/                  # 设计与实施文档
 └── videos/                # 默认下载目录（已加入 .gitignore）
 ```
 
-`core/` 不依赖任何界面代码。后续新增 `ui/`（桌面 GUI）或 `web/`（Web 前端/API）时，直接导入 `core` 即可复用抓取逻辑，新前端只需实现自己的入口。
+`core/` 不依赖任何界面代码。`cli/` 与 `web/` 都只通过 `core` 复用抓取逻辑。
 
 ## 配置项
 
@@ -226,10 +264,10 @@ spider-cli/
 | 常量 | 默认值 | 作用 |
 | --- | --- | --- |
 | `MIN_VIDEO_SIZE` | 1 MB | 小于该体积的视频流会被忽略 |
-| `CHUNK_SIZE` | 8192 | 下载分块大小 |
-| `PAGE_TIMEOUT` | 60 秒 | 页面加载超时 |
-| `VIDEO_WAIT_TIMEOUT` | 15 秒 | 等待 `video` 元素的超时 |
-| `MOUSE_MOVE_WAIT` | 2 秒 | 模拟鼠标后的等待时间 |
+| `CHUNK_SIZE` | 64 KB | 下载分块大小 |
+| `PAGE_TIMEOUT` | 60 秒 | 页面导航超时（只等 DOM 就绪） |
+| `CANDIDATE_WAIT_TIMEOUT` | 30 秒 | 等待候选视频流的最长时间，捕获到就提前结束 |
+| `DOWNLOAD_TIMEOUT` | (10, 120) 秒 | 下载的连接超时和读取超时 |
 | `MAX_TITLE_LEN` | 50 | 文件名最大长度 |
 | `VIEWPORT_WIDTH` / `VIEWPORT_HEIGHT` | 1920 x 1080 | 浏览器视口尺寸 |
 
@@ -242,11 +280,11 @@ spider-cli/
 ## 测试
 
 ```bash
-pip install pytest
+pip install pytest httpx2
 pytest -v
 ```
 
-现有测试覆盖链接提取（包括带 `xsec_token` 的查询参数）、平台识别、小红书 SSR 解析、文件名清理、构造参数和类常量，不需要网络，也不会启动浏览器。
+现有测试覆盖链接提取、平台识别、小红书 SSR 解析、文件名清理、构造参数、类常量、下载路径返回值、Web 下载编排和 FastAPI 端点，不需要网络，也不会启动浏览器。
 
 ## 常见问题
 
@@ -269,6 +307,10 @@ pytest -v
 **提示启动浏览器失败**
 
 多半是 Chromium 没有安装。运行 `playwright install chromium` 后重试。
+
+**Windows 弹出是否允许 `chrome-headless-shell.exe` / `chrome.exe` 的提示**
+
+这是 Playwright 浏览器首次启动时 Windows 防火墙或安全软件的确认，只在运行服务的本机弹出，网页访问者不会看到。抖音爬虫现在优先使用完整 Chromium（`channel="chromium"`）的新无头模式，通常可以避开 `chrome-headless-shell.exe` 的提示。如果仍然出现，请选择"允许"一次；部署到服务器时建议预装浏览器并提前放行，或改用 Linux / Docker 运行。
 
 **抖音下载下来的文件很小或内容不对**
 

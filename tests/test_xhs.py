@@ -6,6 +6,7 @@ import pytest
 
 from core.utils import detect_platform, extract_url_from_text, sanitize_filename
 from core.xhs_spider import (
+    NoteMedia,
     XhsError,
     XhsSpider,
     extract_note_id,
@@ -197,3 +198,67 @@ def test_xhs_spider_parse_raises_without_note():
     spider = XhsSpider("https://www.xiaohongshu.com/explore/abc")
     with pytest.raises(XhsError):
         spider.parse("https://www.xiaohongshu.com/explore/abc", "<html></html>")
+
+
+class TestXhsDownloadResults:
+    def test_resolve_returns_media(self, monkeypatch):
+        spider = XhsSpider("https://www.xiaohongshu.com/explore/abc")
+        media = NoteMedia(
+            note_id="n1", title="标题", kind="video", video_urls=["http://v/1.mp4"]
+        )
+        monkeypatch.setattr(spider, "fetch_html", lambda: ("https://final", "<html>"))
+        monkeypatch.setattr(spider, "parse", lambda final_url, html: media)
+
+        assert spider.resolve() is media
+
+    def test_download_note_video_returns_path(self, tmp_path, monkeypatch):
+        spider = XhsSpider(
+            "https://www.xiaohongshu.com/explore/abc", save_dir=str(tmp_path)
+        )
+        media = NoteMedia(
+            note_id="n1", title="测试视频", kind="video", video_urls=["http://v/1.mp4"]
+        )
+        monkeypatch.setattr(spider, "_download_file", lambda *args, **kwargs: True)
+
+        result = spider.download_note(media)
+
+        assert result == str(tmp_path / "测试视频" / "测试视频.mp4")
+
+    def test_download_note_video_returns_none_when_all_fail(self, tmp_path, monkeypatch):
+        spider = XhsSpider(
+            "https://www.xiaohongshu.com/explore/abc", save_dir=str(tmp_path)
+        )
+        media = NoteMedia(
+            note_id="n1", title="测试视频", kind="video", video_urls=["http://v/1.mp4"]
+        )
+        monkeypatch.setattr(spider, "_download_file", lambda *args, **kwargs: False)
+
+        assert spider.download_note(media) is None
+
+    def test_download_note_images_returns_dir(self, tmp_path, monkeypatch):
+        spider = XhsSpider(
+            "https://www.xiaohongshu.com/explore/abc", save_dir=str(tmp_path)
+        )
+        media = NoteMedia(
+            note_id="n1",
+            title="图集",
+            kind="images",
+            image_urls=[["http://img/1.jpg"]],
+        )
+        monkeypatch.setattr(spider, "_download_images", lambda media, out_dir: True)
+
+        assert spider.download_note(media) == str(tmp_path / "图集")
+
+    def test_download_note_images_returns_none_on_failure(self, tmp_path, monkeypatch):
+        spider = XhsSpider(
+            "https://www.xiaohongshu.com/explore/abc", save_dir=str(tmp_path)
+        )
+        media = NoteMedia(
+            note_id="n1",
+            title="图集",
+            kind="images",
+            image_urls=[["http://img/1.jpg"]],
+        )
+        monkeypatch.setattr(spider, "_download_images", lambda media, out_dir: False)
+
+        assert spider.download_note(media) is None
