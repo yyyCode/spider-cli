@@ -92,6 +92,36 @@ python -m cli
 
 > 如果终端没有安装 `prompt_toolkit`，程序会使用数字菜单，功能不受影响。
 
+## Web 服务
+
+除命令行外，项目还提供基于 FastAPI 的网页版。启动后浏览器打开 `http://127.0.0.1:8000`，粘贴抖音或小红书链接即可下载视频。
+
+```powershell
+# Windows 一键启动
+.\run-web.cmd
+
+# 或手动启动
+.venv\Scripts\python.exe -m web
+```
+
+```bash
+# macOS / Linux
+python -m web
+
+# 自定义监听地址
+python -m web --host 0.0.0.0 --port 9000
+```
+
+接口示例：
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/download \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://v.douyin.com/xxxx/"}'
+```
+
+成功时直接返回 `video/mp4` 文件流；失败返回 JSON `{"detail": "..."}`。当前网页版仅支持视频，小红书图集会返回 400。抖音解析需要启动无头浏览器，通常耗时 10–30 秒。
+
 ## 使用说明
 
 启动后可以选择三个操作：
@@ -204,20 +234,27 @@ spider-cli/
 ├── cli/                   # 命令行前端
 │   ├── main.py            # 入口、平台识别与分发
 │   └── tui.py             # prompt_toolkit 菜单与行内输入
+├── web/                   # FastAPI Web 前端
+│   ├── app.py             # 路由、静态资源、并发限制
+│   ├── service.py         # 下载编排与临时目录管理
+│   └── static/            # 单页界面（HTML/CSS/JS）
 ├── tests/                 # 单元测试
 │   ├── test_douyin.py
-│   └── test_xhs.py
+│   ├── test_xhs.py
+│   ├── test_web_service.py
+│   └── test_web_app.py
 ├── stealth.min.js         # 抖音反检测注入脚本
 ├── pytest.ini             # 测试路径配置
 ├── requirements.txt       # 运行依赖
 ├── requirements-dev.txt   # 打包依赖
 ├── setup.cmd              # Windows 一键安装
-├── run.cmd                # Windows 一键运行
+├── run.cmd                # Windows 一键运行命令行
+├── run-web.cmd            # Windows 一键运行 Web 服务
 ├── docs/                  # 设计与实施文档
 └── videos/                # 默认下载目录（已加入 .gitignore）
 ```
 
-`core/` 不依赖任何界面代码。后续新增 `ui/`（桌面 GUI）或 `web/`（Web 前端/API）时，直接导入 `core` 即可复用抓取逻辑，新前端只需实现自己的入口。
+`core/` 不依赖任何界面代码。`cli/` 与 `web/` 都只通过 `core` 复用抓取逻辑。
 
 ## 配置项
 
@@ -246,7 +283,7 @@ pip install pytest
 pytest -v
 ```
 
-现有测试覆盖链接提取（包括带 `xsec_token` 的查询参数）、平台识别、小红书 SSR 解析、文件名清理、构造参数和类常量，不需要网络，也不会启动浏览器。
+现有测试覆盖链接提取、平台识别、小红书 SSR 解析、文件名清理、构造参数、类常量、下载路径返回值、Web 下载编排和 FastAPI 端点，不需要网络，也不会启动浏览器。
 
 ## 常见问题
 
