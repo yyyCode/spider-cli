@@ -105,3 +105,53 @@ class TestDouyinDownload:
 
         assert result is None
         assert not target.exists()
+
+
+class _FakeChromium:
+    def __init__(self, fail_channel=False):
+        self.calls = []
+        self.fail_channel = fail_channel
+
+    def launch(self, **kwargs):
+        self.calls.append(kwargs)
+        if self.fail_channel and kwargs.get("channel") == "chromium":
+            raise RuntimeError("channel not installed")
+        return "browser"
+
+
+class _FakePlaywright:
+    def __init__(self, fail_channel=False):
+        self.chromium = _FakeChromium(fail_channel)
+
+
+class TestDouyinBrowserLaunch:
+    def test_headless_prefers_full_chromium(self, tmp_path):
+        spider = DouyinSpider("https://example.com", save_dir=str(tmp_path))
+        playwright = _FakePlaywright()
+
+        assert spider._launch_browser(playwright) == "browser"
+        assert playwright.chromium.calls == [
+            {"headless": True, "channel": "chromium"}
+        ]
+
+    def test_headless_falls_back_when_channel_unavailable(self, tmp_path):
+        spider = DouyinSpider("https://example.com", save_dir=str(tmp_path))
+        playwright = _FakePlaywright(fail_channel=True)
+
+        assert spider._launch_browser(playwright) == "browser"
+        assert playwright.chromium.calls == [
+            {"headless": True, "channel": "chromium"},
+            {"headless": True, "args": []},
+        ]
+
+    def test_headed_uses_start_maximized(self, tmp_path):
+        spider = DouyinSpider(
+            "https://example.com", headless=False, save_dir=str(tmp_path)
+        )
+        playwright = _FakePlaywright()
+
+        spider._launch_browser(playwright)
+
+        assert playwright.chromium.calls == [
+            {"headless": False, "args": ["--start-maximized"]}
+        ]

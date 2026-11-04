@@ -307,6 +307,10 @@ pytest -v
 
 多半是 Chromium 没有安装。运行 `playwright install chromium` 后重试。
 
+**Windows 弹出是否允许 `chrome-headless-shell.exe` / `chrome.exe` 的提示**
+
+这是 Playwright 浏览器首次启动时 Windows 防火墙或安全软件的确认，只在运行服务的本机弹出，网页访问者不会看到。抖音爬虫现在优先使用完整 Chromium（`channel="chromium"`）的新无头模式，通常可以避开 `chrome-headless-shell.exe` 的提示。如果仍然出现，请选择"允许"一次；部署到服务器时建议预装浏览器并提前放行，或改用 Linux / Docker 运行。
+
 **抖音下载下来的文件很小或内容不对**
 
 程序会忽略小于 1 MB 的视频流。如果页面本身只提供低码率流，得到的就是这个版本。

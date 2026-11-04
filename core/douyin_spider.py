@@ -69,13 +69,26 @@ class DouyinSpider:
         except Exception:
             pass
 
+    def _launch_browser(self, p):
+        """优先使用完整 Chromium 的新无头模式。
+
+        Playwright 默认会启动独立的 chrome-headless-shell.exe，Windows 首次
+        运行时可能弹出安全/防火墙确认，非交互部署会卡住。完整 Chromium 可以
+        避开这个额外二进制，也更接近真实浏览器；channel 不可用时回退默认启动。
+        """
+        if self.headless:
+            try:
+                return p.chromium.launch(headless=True, channel="chromium")
+            except Exception as e:
+                self.log(f"完整 Chromium 启动失败，回退默认 headless: {e}")
+        args = [] if self.headless else ['--start-maximized']
+        return p.chromium.launch(headless=self.headless, args=args)
+
     def run(self):
         with sync_playwright() as p:
             self.log(f"正在启动浏览器 (Headless={self.headless})...")
-            # 修改：关闭 headless 模式，模拟真实用户，减少被识别为机器人的概率
-            # 也可以方便观察发生了什么
             try:
-                browser = p.chromium.launch(headless=self.headless, args=['--start-maximized'] if not self.headless else [])
+                browser = self._launch_browser(p)
             except Exception as e:
                 self.log(f"启动浏览器失败: {e}")
                 self.log("尝试使用 playwright install 安装浏览器...")
