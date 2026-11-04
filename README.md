@@ -279,7 +279,7 @@ spider-cli/
 ## 测试
 
 ```bash
-pip install pytest
+pip install pytest httpx2
 pytest -v
 ```
 
