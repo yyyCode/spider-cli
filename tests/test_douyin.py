@@ -63,3 +63,45 @@ class TestDouyinSpider:
         assert DouyinSpider.MIN_VIDEO_SIZE == 1024 * 1024
         assert DouyinSpider.CHUNK_SIZE == 8192
         assert DouyinSpider.MAX_TITLE_LEN == 50
+
+
+class _FakeDownloadResponse:
+    status_code = 200
+
+    def iter_content(self, chunk_size=8192):
+        yield b"fake-video-bytes"
+
+
+class _ForbiddenResponse:
+    status_code = 403
+
+    def iter_content(self, chunk_size=8192):
+        yield b""
+
+
+class TestDouyinDownload:
+    def test_download_video_returns_path(self, monkeypatch, tmp_path):
+        spider = DouyinSpider("https://example.com", save_dir=str(tmp_path))
+        monkeypatch.setattr(
+            "core.douyin_spider.requests.get",
+            lambda *args, **kwargs: _FakeDownloadResponse(),
+        )
+        target = tmp_path / "video.mp4"
+
+        result = spider.download_video("https://cdn.example.com/x.mp4", str(target))
+
+        assert result == str(target)
+        assert target.read_bytes() == b"fake-video-bytes"
+
+    def test_download_video_returns_none_on_http_error(self, monkeypatch, tmp_path):
+        spider = DouyinSpider("https://example.com", save_dir=str(tmp_path))
+        monkeypatch.setattr(
+            "core.douyin_spider.requests.get",
+            lambda *args, **kwargs: _ForbiddenResponse(),
+        )
+        target = tmp_path / "x.mp4"
+
+        result = spider.download_video("https://cdn.example.com/x.mp4", str(target))
+
+        assert result is None
+        assert not target.exists()

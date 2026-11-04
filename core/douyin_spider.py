@@ -170,10 +170,11 @@ class DouyinSpider:
                 except Exception as e:
                     self.log(f"页面解析出错: {e}")
 
+            result = None
             if target_url:
                 filename = f"{title}.mp4"
                 filepath = os.path.join(self.save_dir, filename)
-                self.download_video(target_url, filepath)
+                result = self.download_video(target_url, filepath)
             else:
                 self.log("未能获取到视频链接。可能原因：")
                 self.log("1. 视频是 blob 格式（加密流），当前爬虫暂不支持")
@@ -181,6 +182,7 @@ class DouyinSpider:
                 self.log("3. 需要登录")
 
             browser.close()
+            return result
 
     def download_video(self, url, filepath):
         self.log(f"开始下载: {filepath}")
@@ -193,10 +195,11 @@ class DouyinSpider:
                         if chunk:
                             f.write(chunk)
                 self.log(f"下载完成！文件已保存至: {filepath}")
-            else:
-                self.log(f"下载失败，状态码: {response.status_code}")
+                return filepath
+            self.log(f"下载失败，状态码: {response.status_code}")
         except Exception as e:
             self.log(f"下载出错: {e}")
+        return None
 
 if __name__ == "__main__":
     print("="*50)
