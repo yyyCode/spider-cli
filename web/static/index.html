@@ -3,55 +3,73 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Spider CLI · 视频下载</title>
-  <link rel="icon" href="/assets/logo-128.png">
+  <title>Spider · 视频下载器</title>
+  <meta name="description" content="粘贴抖音或小红书链接，直接下载视频文件。">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23d2402b'/%3E%3Cpath d='M29 12h6v24h11L32 52 18 36h11z' fill='%23e7dfcf'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-  <div class="aurora aurora--one"></div>
-  <div class="aurora aurora--two"></div>
-  <div class="aurora aurora--three"></div>
+  <main class="desk">
+    <header class="desk__top">
+      <div class="brand">
+        <span class="brand__led" aria-hidden="true"></span>
+        <span class="brand__name">Spider</span>
+        <span class="brand__tag">视频下载器</span>
+      </div>
+      <span class="desk__meta">本机运行</span>
+    </header>
 
-  <main class="shell">
-    <section class="card">
-      <header class="card__header">
-        <img class="logo" src="/assets/logo.png" alt="Spider CLI logo">
-        <div>
-          <h1>视频下载器</h1>
-          <p class="subtitle">粘贴抖音或小红书链接，直接下载视频文件</p>
-        </div>
-      </header>
+    <section class="deck" aria-labelledby="page-title">
+      <div class="label">
+        <header class="label__head">
+          <h1 id="page-title">视频接收台</h1>
+          <p class="label__intro">粘贴抖音或小红书链接，文件直接存到本机。</p>
+        </header>
 
-      <form id="download-form" class="form" autocomplete="off">
-        <label class="field">
-          <span class="field__label">链接或分享口令</span>
-          <textarea id="url-input" rows="3"
-            placeholder="例如：7.43 复制打开抖音，看看... https://v.douyin.com/xxxx/"
-            spellcheck="false"></textarea>
-        </label>
+        <form id="download-form" class="form" autocomplete="off">
+          <div class="field">
+            <label class="field__label" for="url-input">链接或分享口令</label>
+            <textarea id="url-input" rows="3"
+              placeholder="例如：7.43 复制打开抖音，看看… https://v.douyin.com/xxxx/"
+              spellcheck="false"></textarea>
+          </div>
 
-        <div class="meta">
-          <span id="platform-badge" class="badge badge--idle">等待输入</span>
-          <span class="hint">Ctrl + Enter 快速提交</span>
-        </div>
+          <div class="controls">
+            <div class="readiness">
+              <span id="platform-badge" class="stamp stamp--idle">
+                <span class="stamp__dot" aria-hidden="true"></span>
+                <span id="platform-text" class="stamp__text">等待链接</span>
+              </span>
+              <span class="hint">Ctrl + Enter</span>
+            </div>
+            <button id="submit-btn" type="submit" class="button" disabled>
+              <span class="reel" aria-hidden="true"></span>
+              <span class="button__label">下载视频</span>
+            </button>
+          </div>
+        </form>
 
-        <button id="submit-btn" type="submit" class="button" disabled>
-          <span class="button__label">解析并下载</span>
-          <span class="spinner" aria-hidden="true"></span>
-        </button>
-      </form>
+        <section id="status" class="readout readout--idle" aria-live="polite">
+          <div class="readout__row">
+            <div class="readout__state">
+              <span class="readout__led" aria-hidden="true"></span>
+              <p id="status-text" class="readout__text">待机</p>
+            </div>
+            <span id="status-percent" class="readout__percent">0%</span>
+          </div>
+          <div id="progress" class="progress" role="progressbar"
+            aria-label="下载进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div id="progress-bar" class="progress__bar"></div>
+            <div class="progress__ticks" aria-hidden="true"></div>
+          </div>
+          <div class="readout__foot">
+            <span id="status-size" class="readout__size">0 B</span>
+            <span class="readout__channel">MP4</span>
+          </div>
+        </section>
 
-      <section id="status" class="status" hidden>
-        <div class="status__row">
-          <p id="status-text" class="status__text"></p>
-          <span id="status-percent" class="status__percent"></span>
-        </div>
-        <div class="progress" id="progress" hidden>
-          <div id="progress-bar" class="progress__bar"></div>
-        </div>
-      </section>
-
-      <p class="footnote">当前仅支持视频；小红书图集暂不支持。抖音解析可能需要 10–30 秒。</p>
+        <p class="footnote">小红书图集暂不支持。首次解析抖音链接会启动浏览器，通常需要几秒到半分钟。</p>
+      </div>
     </section>
   </main>
 
