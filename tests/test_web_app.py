@@ -24,7 +24,7 @@ def test_index_serves_html():
 
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
-    assert "视频下载器" in response.text
+    assert "视频接收台" in response.text
 
 
 def test_download_returns_file_and_cleans_temp(monkeypatch, tmp_path):

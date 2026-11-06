@@ -19,6 +19,9 @@ videos/
 browsers/
 ms-playwright/
 
+# Local secrets
+config.ini
+
 # Virtual environment
 .venv/
 

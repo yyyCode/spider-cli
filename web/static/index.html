@@ -3,76 +3,104 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Spider · 视频下载器</title>
-  <meta name="description" content="粘贴抖音或小红书链接，直接下载视频文件。">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23d2402b'/%3E%3Cpath d='M29 12h6v24h11L32 52 18 36h11z' fill='%23e7dfcf'/%3E%3C/svg%3E">
+  <title>Spider · 本机工作台</title>
+  <meta name="description" content="下载抖音或小红书视频，也可以搜索网页并把正文抓取为 Markdown。">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23151311'/%3E%3Crect x='12' y='20' width='18' height='24' fill='%23d2402b'/%3E%3Crect x='34' y='20' width='18' height='24' fill='%23a97f45'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-  <main class="desk">
-    <header class="desk__top">
+  <main class="workbench">
+    <header class="workbench__bar">
       <div class="brand">
         <span class="brand__led" aria-hidden="true"></span>
         <span class="brand__name">Spider</span>
-        <span class="brand__tag">视频下载器</span>
+        <span class="brand__tag">本机工作台</span>
       </div>
-      <span class="desk__meta">本机运行</span>
+
+      <nav class="tool-switch" role="tablist" aria-label="工作台功能">
+        <button id="tool-video" class="tool-switch__button is-active" role="tab"
+          aria-selected="true" aria-controls="panel-video" tabindex="0" type="button">
+          <span class="tool-switch__icon tool-switch__icon--reel" aria-hidden="true"></span>
+          <span>视频下载</span>
+        </button>
+        <button id="tool-research" class="tool-switch__button" role="tab"
+          aria-selected="false" aria-controls="panel-research" tabindex="-1" type="button">
+          <span class="tool-switch__icon tool-switch__icon--card" aria-hidden="true"></span>
+          <span>网页搜索</span>
+        </button>
+      </nav>
+
+      <span class="workbench__meta">本机运行</span>
     </header>
 
-    <section class="deck" aria-labelledby="page-title">
-      <div class="label">
-        <header class="label__head">
-          <h1 id="page-title">视频接收台</h1>
-          <p class="label__intro">粘贴抖音或小红书链接，文件直接存到本机。</p>
-        </header>
+    <section id="panel-video" class="workbench__panel" role="tabpanel"
+      aria-labelledby="tool-video">
+      <div class="desk">
+        <section class="deck" aria-labelledby="page-title">
+          <div class="label">
+            <header class="label__head">
+              <h1 id="page-title">视频接收台</h1>
+              <p class="label__intro">粘贴抖音或小红书链接，文件直接存到本机。</p>
+            </header>
 
-        <form id="download-form" class="form" autocomplete="off">
-          <div class="field">
-            <label class="field__label" for="url-input">链接或分享口令</label>
-            <textarea id="url-input" rows="3"
-              placeholder="例如：7.43 复制打开抖音，看看… https://v.douyin.com/xxxx/"
-              spellcheck="false"></textarea>
-          </div>
+            <form id="download-form" class="form" autocomplete="off">
+              <div class="field">
+                <label class="field__label" for="url-input">链接或分享口令</label>
+                <textarea id="url-input" rows="3"
+                  placeholder="例如：7.43 复制打开抖音，看看… https://v.douyin.com/xxxx/"
+                  spellcheck="false"></textarea>
+              </div>
 
-          <div class="controls">
-            <div class="readiness">
-              <span id="platform-badge" class="stamp stamp--idle">
-                <span class="stamp__dot" aria-hidden="true"></span>
-                <span id="platform-text" class="stamp__text">等待链接</span>
-              </span>
-              <span class="hint">Ctrl + Enter</span>
-            </div>
-            <button id="submit-btn" type="submit" class="button" disabled>
-              <span class="reel" aria-hidden="true"></span>
-              <span class="button__label">下载视频</span>
-            </button>
-          </div>
-        </form>
+              <div class="controls">
+                <div class="readiness">
+                  <span id="platform-badge" class="stamp stamp--idle">
+                    <span class="stamp__dot" aria-hidden="true"></span>
+                    <span id="platform-text" class="stamp__text">等待链接</span>
+                  </span>
+                  <span class="hint">Ctrl + Enter</span>
+                </div>
+                <button id="submit-btn" type="submit" class="button" disabled>
+                  <span class="reel" aria-hidden="true"></span>
+                  <span class="button__label">下载视频</span>
+                </button>
+              </div>
+            </form>
 
-        <section id="status" class="readout readout--idle" aria-live="polite">
-          <div class="readout__row">
-            <div class="readout__state">
-              <span class="readout__led" aria-hidden="true"></span>
-              <p id="status-text" class="readout__text">待机</p>
-            </div>
-            <span id="status-percent" class="readout__percent">0%</span>
-          </div>
-          <div id="progress" class="progress" role="progressbar"
-            aria-label="下载进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-            <div id="progress-bar" class="progress__bar"></div>
-            <div class="progress__ticks" aria-hidden="true"></div>
-          </div>
-          <div class="readout__foot">
-            <span id="status-size" class="readout__size">0 B</span>
-            <span class="readout__channel">MP4</span>
+            <section id="status" class="readout readout--idle" aria-live="polite">
+              <div class="readout__row">
+                <div class="readout__state">
+                  <span class="readout__led" aria-hidden="true"></span>
+                  <p id="status-text" class="readout__text">待机</p>
+                </div>
+                <span id="status-percent" class="readout__percent">0%</span>
+              </div>
+              <div id="progress" class="progress" role="progressbar"
+                aria-label="下载进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                <div id="progress-bar" class="progress__bar"></div>
+                <div class="progress__ticks" aria-hidden="true"></div>
+              </div>
+              <div class="readout__foot">
+                <span id="status-size" class="readout__size">0 B</span>
+                <span class="readout__channel">MP4</span>
+              </div>
+            </section>
+
+            <p class="footnote">小红书图集暂不支持。首次解析抖音链接会启动浏览器，通常需要几秒到半分钟。</p>
           </div>
         </section>
+      </div>
+    </section>
 
-        <p class="footnote">小红书图集暂不支持。首次解析抖音链接会启动浏览器，通常需要几秒到半分钟。</p>
+    <section id="panel-research" class="workbench__panel" role="tabpanel"
+      aria-labelledby="tool-research" hidden>
+      <div id="research-host" class="research-host">
+        <p class="research-host__loading">正在准备研究台…</p>
       </div>
     </section>
   </main>
 
   <script src="/static/app.js"></script>
+  <script src="/static/research.js"></script>
+  <script src="/static/workbench.js"></script>
 </body>
 </html>
