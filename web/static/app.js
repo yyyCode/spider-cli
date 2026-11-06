@@ -3,9 +3,11 @@ const input = document.getElementById("url-input");
 const button = document.getElementById("submit-btn");
 const buttonLabel = button.querySelector(".button__label");
 const badge = document.getElementById("platform-badge");
+const badgeText = document.getElementById("platform-text");
 const statusBox = document.getElementById("status");
 const statusText = document.getElementById("status-text");
 const statusPercent = document.getElementById("status-percent");
+const statusSize = document.getElementById("status-size");
 const progress = document.getElementById("progress");
 const progressBar = document.getElementById("progress-bar");
 
@@ -14,7 +16,11 @@ const PLATFORM_HOSTS = {
   douyin: [/(^|\.)douyin\.com$/i, /(^|\.)iesdouyin\.com$/i],
   xhs: [/(^|\.)xiaohongshu\.com$/i, /(^|\.)xhslink\.com$/i],
 };
-const PENDING_MESSAGES = ["正在解析链接…", "正在启动浏览器…", "正在下载视频…"];
+const PENDING_MESSAGES = [
+  "正在解析链接…",
+  "正在准备浏览器…",
+  "正在等待视频流…",
+];
 
 let busy = false;
 
@@ -34,51 +40,67 @@ function detectPlatform(text) {
 
 function updateBadge() {
   const platform = detectPlatform(input.value);
-  badge.className = "badge";
+  badge.className = "stamp";
+
   if (platform === "douyin") {
-    badge.textContent = "抖音视频";
-    badge.classList.add("badge--douyin");
+    badgeText.textContent = "抖音视频";
+    badge.classList.add("stamp--douyin");
   } else if (platform === "xhs") {
-    badge.textContent = "小红书视频";
-    badge.classList.add("badge--xhs");
+    badgeText.textContent = "小红书视频";
+    badge.classList.add("stamp--xhs");
+  } else if (input.value.trim()) {
+    badgeText.textContent = "未识别链接";
+    badge.classList.add("stamp--invalid");
   } else {
-    badge.textContent = input.value.trim() ? "未识别到支持的链接" : "等待输入";
-    badge.classList.add("badge--idle");
+    badgeText.textContent = "等待链接";
+    badge.classList.add("stamp--idle");
   }
+
   button.disabled = busy || !platform;
 }
 
 function setLoading(loading) {
-  button.classList.toggle("is-loading", loading);
-  buttonLabel.textContent = loading ? "处理中…" : "解析并下载";
   busy = loading;
+  button.classList.toggle("is-loading", loading);
+  button.setAttribute("aria-busy", String(loading));
+  buttonLabel.textContent = loading ? "接收中…" : "下载视频";
   updateBadge();
 }
 
 function showStatus(kind, text, percent = "") {
-  statusBox.hidden = false;
-  statusBox.className = `status status--${kind}`;
+  statusBox.className = `readout readout--${kind}`;
   statusText.textContent = text;
   statusPercent.textContent = percent;
 }
 
 function setProgress(percent) {
-  progress.hidden = false;
   progressBar.style.width = `${percent}%`;
+  progress.setAttribute("aria-valuenow", String(percent));
+}
+
+function setIndeterminate(active) {
+  progress.classList.toggle("progress--indeterminate", active);
+  if (active) {
+    progress.removeAttribute("aria-valuenow");
+  } else {
+    progress.setAttribute("aria-valuenow", "0");
+  }
 }
 
 function resetStatus() {
-  statusBox.hidden = true;
-  statusBox.className = "status";
-  statusPercent.textContent = "";
-  progress.hidden = true;
-  progressBar.style.width = "0%";
+  showStatus("idle", "待机", "0%");
+  statusSize.textContent = "0 B";
+  setIndeterminate(false);
+  setProgress(0);
 }
 
 function formatSize(bytes) {
   if (!bytes) return "0 B";
   const units = ["B", "KB", "MB", "GB"];
-  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  const index = Math.min(
+    Math.floor(Math.log(bytes) / Math.log(1024)),
+    units.length - 1
+  );
   return `${(bytes / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
 }
 
@@ -110,15 +132,15 @@ function saveBlob(blob, filename) {
 async function download(rawUrl) {
   setLoading(true);
   resetStatus();
-  showStatus("processing", PENDING_MESSAGES[0]);
-  setProgress(6);
+  showStatus("processing", PENDING_MESSAGES[0], "…");
+  setIndeterminate(true);
 
   let messageIndex = 0;
   let receiving = false;
   const messageTimer = setInterval(() => {
     if (receiving) return;
     messageIndex = Math.min(messageIndex + 1, PENDING_MESSAGES.length - 1);
-    showStatus("processing", PENDING_MESSAGES[messageIndex]);
+    showStatus("processing", PENDING_MESSAGES[messageIndex], "…");
   }, 4000);
 
   try {
@@ -139,11 +161,17 @@ async function download(rawUrl) {
       throw new Error(detail);
     }
 
-    const filename = parseFilename(response.headers.get("Content-Disposition")) || "video.mp4";
+    const filename =
+      parseFilename(response.headers.get("Content-Disposition")) || "video.mp4";
     const total = Number(response.headers.get("Content-Length")) || 0;
     const contentType = response.headers.get("Content-Type") || "video/mp4";
 
     receiving = true;
+    setIndeterminate(false);
+    setProgress(0);
+    statusSize.textContent = "0 B";
+    showStatus("processing", "正在接收视频…", total ? "0%" : "…");
+
     const reader = response.body.getReader();
     const chunks = [];
     let received = 0;
@@ -153,22 +181,29 @@ async function download(rawUrl) {
       if (done) break;
       chunks.push(value);
       received += value.length;
+      statusSize.textContent = formatSize(received);
+
       if (total) {
         const percent = Math.min(100, Math.round((received / total) * 100));
         setProgress(percent);
         showStatus("processing", "正在接收视频…", `${percent}%`);
       } else {
-        showStatus("processing", "正在接收视频…", formatSize(received));
+        setIndeterminate(true);
+        showStatus("processing", "正在接收视频…", "…");
       }
     }
 
     const blob = new Blob(chunks, { type: contentType });
     saveBlob(blob, filename);
+    setIndeterminate(false);
     setProgress(100);
-    showStatus("success", `下载完成 · ${filename}`, formatSize(blob.size));
+    statusSize.textContent = formatSize(blob.size);
+    showStatus("success", `已保存 ${filename}`, "100%");
   } catch (error) {
-    showStatus("error", error.message || "下载失败，请稍后重试");
-    progress.hidden = true;
+    setIndeterminate(false);
+    setProgress(0);
+    statusSize.textContent = "—";
+    showStatus("error", error.message || "下载失败，请稍后重试", "");
   } finally {
     clearInterval(messageTimer);
     setLoading(false);
@@ -191,3 +226,4 @@ input.addEventListener("keydown", (event) => {
 });
 
 updateBadge();
+resetStatus();
