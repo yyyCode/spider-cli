@@ -8,6 +8,7 @@
   --ink-faint: rgba(28, 26, 22, 0.46);
   --signal: #d2402b;
   --teal: #1f7f7a;
+  --brass: #a97f45;
   --lcd: #10120e;
   --lcd-line: #2e2b23;
   --lcd-text: #e2b776;
@@ -20,6 +21,10 @@
 
 * {
   box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
 }
 
 html,
@@ -58,20 +63,139 @@ body::before {
   color: var(--label);
 }
 
-.desk {
-  width: min(760px, 100%);
+.workbench {
+  width: min(1200px, 100%);
   position: relative;
   z-index: 1;
 }
 
-.desk__top {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+.workbench__bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
   gap: 16px;
-  margin-bottom: 10px;
+  margin-bottom: 18px;
   padding: 0 2px;
-  color: #b9af9e;
+}
+
+.workbench__meta {
+  justify-self: end;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: #8b8272;
+  white-space: nowrap;
+}
+
+.tool-switch {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 3px;
+  background: #0e0c0b;
+  border: 1px solid var(--case-edge);
+  border-radius: 2px;
+  box-shadow: inset 0 2px 9px rgba(0, 0, 0, 0.55);
+}
+
+.tool-switch__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 128px;
+  padding: 8px 15px;
+  border: 0;
+  border-radius: 1px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #9a9080;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    color 0.12s,
+    background 0.12s;
+}
+
+.tool-switch__button:hover:not(.is-active) {
+  color: #d9d0c0;
+  background: rgba(231, 223, 207, 0.06);
+}
+
+.tool-switch__button.is-active {
+  color: var(--ink);
+  background: var(--label);
+}
+
+#tool-video.is-active {
+  box-shadow: inset 0 -2px 0 var(--signal);
+}
+
+#tool-research.is-active {
+  box-shadow: inset 0 -2px 0 var(--brass);
+}
+
+.tool-switch__button:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+#tool-research:focus-visible {
+  outline-color: var(--brass);
+}
+
+.tool-switch__icon {
+  position: relative;
+  flex: none;
+  display: block;
+}
+
+.tool-switch__icon--reel {
+  width: 13px;
+  height: 13px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    currentColor 0 14deg,
+    transparent 14deg 60deg
+  );
+}
+
+.tool-switch__icon--card {
+  width: 13px;
+  height: 11px;
+  border: 1.5px solid currentColor;
+}
+
+.tool-switch__icon--card::before {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: 1px;
+  width: 5px;
+  height: 3px;
+  background: currentColor;
+}
+
+.tool-switch__icon--card::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  top: 3px;
+  height: 1px;
+  background: currentColor;
+  box-shadow: 0 3px 0 currentColor;
+  opacity: 0.6;
+}
+
+.desk {
+  width: min(760px, 100%);
+  position: relative;
+  z-index: 1;
+  margin: 0 auto;
 }
 
 .brand {
@@ -101,14 +225,6 @@ body::before {
 .brand__tag {
   font-size: 11px;
   letter-spacing: 0.04em;
-  color: #8b8272;
-  white-space: nowrap;
-}
-
-.desk__meta {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
   color: #8b8272;
   white-space: nowrap;
 }
@@ -502,6 +618,54 @@ textarea:focus {
   color: var(--ink-muted);
 }
 
+.research-host__loading {
+  min-height: 320px;
+  margin: 0;
+  padding: 28px 24px;
+  color: #9fae9f;
+  background: rgba(20, 36, 31, 0.35);
+  border: 1px dashed var(--case-edge);
+  border-radius: 2px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.research-host--error {
+  min-height: 0;
+  padding: 24px;
+  color: #f0b1a1;
+  background: var(--case-panel);
+  border: 1px dashed var(--danger);
+  border-radius: 2px;
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+@media (max-width: 720px) {
+  .workbench__bar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 14px;
+    margin-bottom: 16px;
+  }
+
+  .tool-switch {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+  }
+
+  .tool-switch__button {
+    flex: 1;
+    min-width: 0;
+    padding: 9px 10px;
+  }
+
+  .workbench__meta {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
+
 @media (max-width: 620px) {
   body {
     padding: 22px 12px 28px;
@@ -563,5 +727,9 @@ textarea:focus {
   .readout--processing .readout__led,
   .progress--indeterminate .progress__bar {
     animation: none;
+  }
+
+  .tool-switch__button {
+    transition: none;
   }
 }

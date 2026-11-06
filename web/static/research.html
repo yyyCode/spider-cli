@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spider · 研究台</title>
+  <meta name="description" content="用 DeepSeek 搜索网页，或把单个网页抓取为 Markdown 正文。">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230d1a17'/%3E%3Cpath d='M14 18h36v34H14z' fill='%23e9e4d4'/%3E%3Cpath d='M20 13h16v9H20z' fill='%23a97f45'/%3E%3Cpath d='M21 31h22M21 38h17M21 45h20' stroke='%232f7166' stroke-width='3'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/research.css">
+</head>
+<body>
+  <main id="research-page" class="room">
+    <header class="room__bar">
+      <div class="brand">
+        <span class="brand__tab" aria-hidden="true"></span>
+        <span class="brand__name">Spider</span>
+        <span class="brand__tag">研究台</span>
+      </div>
+      <div id="api-status" class="api-status api-status--checking" aria-live="polite">
+        <span class="api-status__lamp" aria-hidden="true"></span>
+        <span id="api-status-text">检查配置…</span>
+        <button id="recheck-btn" class="link-button link-button--light" type="button" hidden>重新检查</button>
+      </div>
+    </header>
+
+    <section class="room__intro">
+      <h1>研究台</h1>
+      <p>查资料，读原文。搜索结果和网页正文都留在这张桌上。</p>
+    </section>
+
+    <div id="config-banner" class="banner" role="alert" hidden>
+      <p id="config-message" class="banner__message"></p>
+      <p class="banner__hint">
+        保存文件后点右上角的「重新检查」，不需要重启服务。
+      </p>
+    </div>
+
+    <div class="desk">
+      <aside class="slip" aria-label="查询">
+        <div class="slip__tabs" role="tablist" aria-label="查询模式">
+          <button id="tab-search" class="tab tab--active" role="tab"
+            aria-selected="true" aria-controls="panel-search" type="button">搜索网页</button>
+          <button id="tab-fetch" class="tab" role="tab" tabindex="-1"
+            aria-selected="false" aria-controls="panel-fetch" type="button">抓取页面</button>
+        </div>
+
+        <section id="panel-search" class="slip__panel" role="tabpanel" aria-labelledby="tab-search">
+          <form id="search-form" class="form" autocomplete="off" novalidate>
+            <div class="field">
+              <label class="field__label" for="query-input">搜索词</label>
+              <input id="query-input" class="input input--query" type="text"
+                maxlength="128" placeholder="例如：DeepSeek V4 发布" spellcheck="false">
+            </div>
+
+            <div class="field-row">
+              <div class="field field--count">
+                <label class="field__label" for="count-input">结果数量</label>
+                <input id="count-input" class="input input--number" type="number"
+                  min="1" max="50" step="1" value="10" inputmode="numeric">
+              </div>
+              <label class="check" for="content-input">
+                <input id="content-input" type="checkbox">
+                <span class="check__box" aria-hidden="true"></span>
+                <span>同时取回正文</span>
+              </label>
+            </div>
+
+            <details class="fold">
+              <summary class="fold__summary">更多选项</summary>
+              <div class="fold__body">
+                <div class="field">
+                  <label class="field__label" for="question-input">原始问题</label>
+                  <input id="question-input" class="input" type="text" maxlength="128"
+                    placeholder="可选，帮助理解搜索意图">
+                </div>
+                <div class="field">
+                  <label class="field__label" for="localization-input">本地化 IP</label>
+                  <input id="localization-input" class="input" type="text"
+                    placeholder="可选，例如 1.2.3.4">
+                </div>
+              </div>
+            </details>
+
+            <button id="search-btn" class="button" type="submit">开始检索</button>
+          </form>
+
+          <details class="fold fold--syntax">
+            <summary class="fold__summary">搜索语法</summary>
+            <div class="fold__body">
+              <dl class="syntax">
+                <div><dt><code>site:</code></dt><dd>限定站点</dd></div>
+                <div><dt><code>-site:</code></dt><dd>排除站点</dd></div>
+                <div><dt><code>"..."</code></dt><dd>精确短语</dd></div>
+                <div><dt><code>-</code></dt><dd>排除关键词</dd></div>
+                <div><dt><code>lang:</code></dt><dd>限定语言</dd></div>
+                <div><dt><code>after:</code> / <code>before:</code></dt><dd>限定日期</dd></div>
+              </dl>
+              <p class="syntax__example">DeepSeek 模型 site:github.com lang:zh after:2025</p>
+            </div>
+          </details>
+        </section>
+
+        <section id="panel-fetch" class="slip__panel" role="tabpanel" aria-labelledby="tab-fetch" hidden>
+          <form id="fetch-form" class="form" autocomplete="off" novalidate>
+            <div class="field">
+              <label class="field__label" for="fetch-input">网页地址</label>
+              <input id="fetch-input" class="input" type="text" inputmode="url"
+                maxlength="8192" placeholder="https://example.com/article" spellcheck="false">
+            </div>
+            <button id="fetch-btn" class="button" type="submit">抓取正文</button>
+            <p class="form__note">
+              返回网页的 Markdown 正文。目标站点拒绝访问或没有可提取内容时，DeepSeek 会返回 404。
+            </p>
+          </form>
+        </section>
+      </aside>
+
+      <section id="workspace" class="workspace" aria-live="polite">
+        <div id="workspace-empty" class="empty">
+          <p class="empty__title">还没有检索</p>
+          <p class="empty__body">输入关键词，结果会按相关度排在这里。也可以直接抓取一个网页地址。</p>
+        </div>
+
+        <div id="workspace-loading" class="loading" hidden>
+          <span class="loading__line" aria-hidden="true"></span>
+          <p id="loading-text" class="loading__text">正在检索…</p>
+        </div>
+
+        <div id="workspace-error" class="error-card" role="alert" hidden>
+          <p class="error-card__label">没有完成</p>
+          <p id="error-text" class="error-card__text"></p>
+        </div>
+
+        <div id="results-view" class="results" hidden>
+          <header class="results__head">
+            <div>
+              <h2 class="results__title">检索结果</h2>
+              <p id="results-meta" class="results__meta"></p>
+            </div>
+            <button id="clear-results" class="link-button link-button--light" type="button">清空</button>
+          </header>
+          <div id="results-list" class="results__list"></div>
+        </div>
+
+        <article id="reading-view" class="reading" hidden>
+          <header class="reading__head">
+            <div class="reading__crumb">
+              <button id="back-btn" class="link-button" type="button">返回结果</button>
+              <span id="reading-kind" class="reading__kind">正文</span>
+            </div>
+            <h2 id="reading-title" class="reading__title"></h2>
+            <a id="reading-source" class="reading__source" target="_blank" rel="noopener noreferrer"></a>
+            <div class="reading__actions">
+              <button id="copy-btn" class="button button--small" type="button">复制 Markdown</button>
+              <button id="save-btn" class="button button--small button--ghost" type="button">保存 .md</button>
+            </div>
+          </header>
+          <div class="reading__paper">
+            <pre id="reading-content" class="reading__content" tabindex="0"
+              aria-label="Markdown 正文"></pre>
+          </div>
+        </article>
+      </section>
+    </div>
+
+    <footer class="room__foot">
+      <span>DeepSeek Search &amp; Fetch</span>
+      <span id="base-url" class="room__foot-meta"></span>
+    </footer>
+  </main>
+
+  <script src="/static/research.js"></script>
+</body>
+</html>

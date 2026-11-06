@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from starlette.background import BackgroundTask
 from starlette.concurrency import run_in_threadpool
 
+from .research_routes import router as research_router
 from .service import WebDownloadError, download_video
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -30,6 +31,7 @@ async def lifespan(app):
 app = FastAPI(title="Spider CLI Web", version="1.0.0", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
+app.include_router(research_router)
 
 
 class DownloadRequest(BaseModel):

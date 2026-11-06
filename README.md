@@ -25,6 +25,7 @@
 - 注入 `stealth.min.js`，配合桌面 UA 和鼠标移动模拟，降低抖音反爬识别的概率
 - 基于 `prompt_toolkit` 的方向键菜单，终端不支持交互时自动回退为数字菜单
 - 下载目录可随时修改，文件名取自标题并过滤非法字符
+- Web 工作台顶部可在「视频下载」和「网页搜索」之间切换，两个功能各有独立面板和接口
 
 ## 支持平台
 
@@ -94,7 +95,7 @@ python -m cli
 
 ## Web 服务
 
-除命令行外，项目还提供基于 FastAPI 的网页版。启动后浏览器打开 `http://127.0.0.1:8000`，粘贴抖音或小红书链接即可下载视频。
+除命令行外，项目还提供基于 FastAPI 的网页版。启动后浏览器打开 `http://127.0.0.1:8000`，顶部可以选择「视频下载」或「网页搜索」。
 
 ```powershell
 # Windows 一键启动
@@ -121,6 +122,65 @@ curl -X POST http://127.0.0.1:8000/api/download \
 ```
 
 成功时直接返回 `video/mp4` 文件流；失败返回 JSON `{"detail": "..."}`。当前网页版仅支持视频，小红书图集会返回 400。抖音解析需要启动无头浏览器，捕获到视频流后会立即开始下载；服务端控制台会打印各阶段耗时，便于排查。
+
+## 网页搜索与抓取
+
+首页顶部有两个功能按钮：「视频下载」和「网页搜索」。两个功能共用同一个页面，但各自有独立的面板和接口，互不影响。也可以直接打开 `http://127.0.0.1:8000/#research`；旧地址 `/research` 会自动跳转到这里。
+
+网页搜索面板提供两种操作：
+
+- 搜索网页：输入查询词，可选返回条数、是否同时取回正文，以及 `ori_question` / `localization` 等选项；结果按相关度展示，支持 `site:`、`lang:`、`after:` 等搜索语法
+- 抓取页面：输入 HTTP/HTTPS 地址，DeepSeek 返回网页标题和 Markdown 正文；页面内可以复制正文或保存为 `.md` 文件
+
+### 配置
+
+复制示例配置并填入 API Key：
+
+```powershell
+# Windows
+Copy-Item config.example.ini config.ini
+```
+
+```bash
+# macOS / Linux
+cp config.example.ini config.ini
+```
+
+然后编辑 `config.ini`：
+
+```ini
+[deepseek]
+api_key = sk-xxxxxxxx
+base_url = https://api.deepseek.com
+```
+
+`config.ini` 已加入 `.gitignore`，不会被提交。也可以用环境变量覆盖，适合临时使用或部署：
+
+| 环境变量 | 作用 |
+| --- | --- |
+| `DEEPSEEK_API_KEY` | 覆盖配置文件中的 `api_key` |
+| `DEEPSEEK_BASE_URL` | 覆盖 `base_url` |
+| `DEEPSEEK_CONFIG` | 指定另一个配置文件路径 |
+
+配置在每次请求时读取，改完文件后点页面右上角的「重新检查」即可，不需要重启服务。
+
+### 接口
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| `GET` | `/` | 工作台页面，包含「视频下载」和「网页搜索」两个页签 |
+| `GET` | `/research` | 旧地址，自动跳转到 `/#research` |
+| `GET` | `/api/research/status` | 是否已配置 API Key，以及搜索默认值；不返回密钥 |
+| `POST` | `/api/research/search` | 搜索网页 |
+| `POST` | `/api/research/fetch` | 抓取单个网页的 Markdown 正文 |
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/research/search \
+  -H "Content-Type: application/json" \
+  -d '{"query": "DeepSeek V4", "count": 5, "need_content": true}'
+```
+
+Search 和 Fetch 按成功请求次数计费，限速分别为 100 QPS 和 25 QPS。具体规则见 [Search API](https://api-docs.deepseek.com/zh-cn/api/search.md) 和 [Fetch API](https://api-docs.deepseek.com/zh-cn/api/fetch.md)。
 
 ## 使用说明
 
@@ -235,16 +295,25 @@ spider-cli/
 ├── cli/                   # 命令行前端
 │   ├── main.py            # 入口、平台识别与分发
 │   └── tui.py             # prompt_toolkit 菜单与行内输入
+├── research/              # DeepSeek 搜索/抓取，独立于视频业务
+│   ├── client.py          # Search/Fetch 客户端、参数校验与重试
+│   ├── config.py          # 读取 config.ini
+│   └── errors.py          # 可展示给页面的错误类型
 ├── web/                   # FastAPI Web 前端
-│   ├── app.py             # 路由、静态资源、并发限制
+│   ├── app.py             # 工作台入口、视频下载路由、静态资源、并发限制
+│   ├── research_routes.py # /api/research/* 与旧地址跳转
 │   ├── service.py         # 下载编排与临时目录管理
-│   └── static/            # 单页界面（HTML/CSS/JS）
+│   └── static/            # 工作台壳层、视频下载面板、研究台面板（HTML/CSS/JS）
 ├── tests/                 # 单元测试
 │   ├── test_douyin.py
 │   ├── test_xhs.py
 │   ├── test_web_service.py
-│   └── test_web_app.py
+│   ├── test_web_app.py
+│   ├── test_research_config.py
+│   ├── test_research_client.py
+│   └── test_research_routes.py
 ├── stealth.min.js         # 抖音反检测注入脚本
+├── config.example.ini     # DeepSeek 配置示例（复制为 config.ini）
 ├── pytest.ini             # 测试路径配置
 ├── requirements.txt       # 运行依赖
 ├── requirements-dev.txt   # 打包依赖
@@ -255,7 +324,7 @@ spider-cli/
 └── videos/                # 默认下载目录（已加入 .gitignore）
 ```
 
-`core/` 不依赖任何界面代码。`cli/` 与 `web/` 都只通过 `core` 复用抓取逻辑。
+`core/` 不依赖任何界面代码。`cli/` 与 `web/` 都只通过 `core` 复用抓取逻辑。`research/` 与视频抓取完全独立，只由 `web/research_routes.py` 提供 `/api/research/*`；研究台面板通过独立的路由前缀接入工作台。
 
 ## 配置项
 
@@ -277,6 +346,23 @@ spider-cli/
 | --- | --- | --- |
 | `XHS_COOKIE` | 空 | 可选，完整 Cookie 字符串，登录墙笔记需要 |
 
+### DeepSeek 搜索与抓取
+
+DeepSeek 的配置从项目根目录的 `config.ini` 读取，示例见 `config.example.ini`。`config.ini` 已被 `.gitignore` 忽略：
+
+| 配置项 | 默认值 | 作用 |
+| --- | --- | --- |
+| `api_key` | 空 | 必填，DeepSeek API Key；可用 `DEEPSEEK_API_KEY` 覆盖 |
+| `base_url` | `https://api.deepseek.com` | API 地址；可用 `DEEPSEEK_BASE_URL` 覆盖 |
+| `connect_timeout` | `10` | 连接超时（秒） |
+| `read_timeout` | `60` | 读取超时（秒） |
+| `default_count` | `10` | 搜索结果默认条数，1～50 |
+| `need_content` | `false` | 搜索时是否默认同时取回正文 |
+| `max_retries` | `2` | 408 / 429 / 5xx 的自动重试次数 |
+| `retry_backoff` | `0.5` | 重试退避基数（秒），按指数增长，单次最多等待 10 秒 |
+
+API Key 只保存在服务端，不会返回给浏览器，也不会写入日志。
+
 ## 测试
 
 ```bash
@@ -284,7 +370,7 @@ pip install pytest httpx2
 pytest -v
 ```
 
-现有测试覆盖链接提取、平台识别、小红书 SSR 解析、文件名清理、构造参数、类常量、下载路径返回值、Web 下载编排和 FastAPI 端点，不需要网络，也不会启动浏览器。
+现有测试覆盖链接提取、平台识别、小红书 SSR 解析、文件名清理、构造参数、类常量、下载路径返回值、Web 下载编排、FastAPI 端点，以及 DeepSeek 配置加载、Search/Fetch 客户端校验与重试、工作台双功能页签与研究台路由。测试不需要网络，也不会启动浏览器。
 
 ## 常见问题
 

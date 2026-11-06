@@ -1,0 +1,65 @@
+/* 研究台嵌入工作台时的布局调整，仅在 shadow root 内加载。 */
+
+.room--embedded {
+  width: 100%;
+  max-width: none;
+  min-height: 0;
+  padding: 10px clamp(14px, 2vw, 24px) 22px;
+  background: var(--room);
+  border: 1px solid var(--room-edge);
+  border-radius: 2px;
+  box-shadow:
+    0 28px 70px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.room--embedded::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.012) 0 1px,
+    transparent 1px 4px
+  );
+}
+
+.room--embedded .room__bar {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  min-height: 20px;
+}
+
+.room--embedded .room__bar .brand {
+  display: none;
+}
+
+.room--embedded .room__intro {
+  margin-top: 18px;
+}
+
+.room--embedded .room__foot {
+  margin-top: 32px;
+}
+
+@media (max-width: 760px) {
+  .room--embedded {
+    padding: 8px 12px 18px;
+  }
+
+  .room--embedded .room__intro {
+    margin-top: 16px;
+  }
+}
+
+@media (max-width: 440px) {
+  .room--embedded .room__bar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+  }
+}
