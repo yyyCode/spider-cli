@@ -1,29 +1,21 @@
 /* 研究台嵌入工作台时的布局调整，仅在 shadow root 内加载。 */
 
 .room--embedded {
+  --room: #211e1a;
+  --room-raised: #2a251f;
+  --room-edge: #3a342b;
+  position: relative;
   width: 100%;
   max-width: none;
   min-height: 0;
-  padding: 10px clamp(14px, 2vw, 24px) 22px;
+  margin: 0;
+  padding: 26px clamp(20px, 3vw, 36px) 20px;
   background: var(--room);
   border: 1px solid var(--room-edge);
   border-radius: 2px;
   box-shadow:
-    0 28px 70px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.03);
-}
-
-.room--embedded::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0.012) 0 1px,
-    transparent 1px 4px
-  );
+    0 28px 70px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .room--embedded .room__bar {
@@ -31,7 +23,7 @@
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
-  min-height: 20px;
+  min-height: 18px;
 }
 
 .room--embedded .room__bar .brand {
@@ -39,20 +31,97 @@
 }
 
 .room--embedded .room__intro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 14px;
+  row-gap: 2px;
+  max-width: none;
+  margin-top: 0;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--room-edge);
+}
+
+.room--embedded .room__intro h1 {
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: 0.02em;
+}
+
+.room--embedded .room__intro p {
+  margin: 0;
+  font-size: 12.5px;
+  color: #9aa79d;
+}
+
+.room--embedded .banner {
+  max-width: none;
   margin-top: 18px;
 }
 
+.room--embedded .desk {
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 24px;
+  margin-top: 20px;
+}
+
+.room--embedded .slip {
+  top: 16px;
+}
+
+.room--embedded .workspace {
+  min-height: 0;
+}
+
+.room--embedded .empty {
+  min-height: 300px;
+  padding: 32px 30px 28px;
+}
+
+.room--embedded .results__title {
+  font-size: 23px;
+}
+
+.room--embedded .reading {
+  padding: 24px 26px 22px;
+}
+
 .room--embedded .room__foot {
-  margin-top: 32px;
+  margin-top: 26px;
+}
+
+@media (max-width: 900px) {
+  .room--embedded .desk {
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 20px;
+  }
+}
+
+@media (max-width: 820px) {
+  .room--embedded {
+    padding: 22px 16px 18px;
+  }
+
+  .room--embedded .desk {
+    grid-template-columns: 1fr;
+    gap: 22px;
+    margin-top: 18px;
+  }
+
+  .room--embedded .slip {
+    position: relative;
+    top: auto;
+  }
 }
 
 @media (max-width: 760px) {
   .room--embedded {
-    padding: 8px 12px 18px;
+    padding: 18px 12px 16px;
   }
 
   .room--embedded .room__intro {
-    margin-top: 16px;
+    margin-top: 0;
+    padding-bottom: 13px;
   }
 }
 
@@ -61,5 +130,10 @@
     flex-direction: row;
     align-items: center;
     justify-content: flex-end;
+  }
+
+  .room--embedded .empty {
+    min-height: 0;
+    padding: 24px 18px 22px;
   }
 }

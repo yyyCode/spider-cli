@@ -38,54 +38,73 @@
       <div class="desk">
         <section class="deck" aria-labelledby="page-title">
           <div class="label">
-            <header class="label__head">
-              <h1 id="page-title">视频接收台</h1>
-              <p class="label__intro">粘贴抖音或小红书链接，文件直接存到本机。</p>
-            </header>
+            <div class="label__grid">
+              <div class="label__side">
+                <header class="label__head">
+                  <h1 id="page-title">视频接收台</h1>
+                  <p class="label__intro">粘贴抖音或小红书链接，文件直接存到本机。</p>
+                </header>
 
-            <form id="download-form" class="form" autocomplete="off">
-              <div class="field">
-                <label class="field__label" for="url-input">链接或分享口令</label>
-                <textarea id="url-input" rows="3"
-                  placeholder="例如：7.43 复制打开抖音，看看… https://v.douyin.com/xxxx/"
-                  spellcheck="false"></textarea>
+                <aside class="label__aside" aria-label="支持的来源">
+                  <p class="aside__label">支持的来源</p>
+                  <ul class="sources">
+                    <li>
+                      <span class="sources__mark sources__mark--douyin" aria-hidden="true"></span>
+                      抖音视频
+                    </li>
+                    <li>
+                      <span class="sources__mark sources__mark--xhs" aria-hidden="true"></span>
+                      小红书视频
+                    </li>
+                  </ul>
+                  <p class="footnote">小红书图集暂不支持。首次解析抖音链接会启动浏览器，通常需要几秒到半分钟。</p>
+                </aside>
               </div>
 
-              <div class="controls">
-                <div class="readiness">
-                  <span id="platform-badge" class="stamp stamp--idle">
-                    <span class="stamp__dot" aria-hidden="true"></span>
-                    <span id="platform-text" class="stamp__text">等待链接</span>
-                  </span>
-                  <span class="hint">Ctrl + Enter</span>
-                </div>
-                <button id="submit-btn" type="submit" class="button" disabled>
-                  <span class="reel" aria-hidden="true"></span>
-                  <span class="button__label">下载视频</span>
-                </button>
-              </div>
-            </form>
+              <div class="label__main">
+                <form id="download-form" class="form" autocomplete="off">
+                  <div class="field">
+                    <label class="field__label" for="url-input">链接或分享口令</label>
+                    <textarea id="url-input" rows="3"
+                      placeholder="例如：7.43 复制打开抖音，看看… https://v.douyin.com/xxxx/"
+                      spellcheck="false"></textarea>
+                  </div>
 
-            <section id="status" class="readout readout--idle" aria-live="polite">
-              <div class="readout__row">
-                <div class="readout__state">
-                  <span class="readout__led" aria-hidden="true"></span>
-                  <p id="status-text" class="readout__text">待机</p>
-                </div>
-                <span id="status-percent" class="readout__percent">0%</span>
-              </div>
-              <div id="progress" class="progress" role="progressbar"
-                aria-label="下载进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-                <div id="progress-bar" class="progress__bar"></div>
-                <div class="progress__ticks" aria-hidden="true"></div>
-              </div>
-              <div class="readout__foot">
-                <span id="status-size" class="readout__size">0 B</span>
-                <span class="readout__channel">MP4</span>
-              </div>
-            </section>
+                  <div class="controls">
+                    <div class="readiness">
+                      <span id="platform-badge" class="stamp stamp--idle">
+                        <span class="stamp__dot" aria-hidden="true"></span>
+                        <span id="platform-text" class="stamp__text">等待链接</span>
+                      </span>
+                      <span class="hint">Ctrl + Enter</span>
+                    </div>
+                    <button id="submit-btn" type="submit" class="button" disabled>
+                      <span class="reel" aria-hidden="true"></span>
+                      <span class="button__label">下载视频</span>
+                    </button>
+                  </div>
+                </form>
 
-            <p class="footnote">小红书图集暂不支持。首次解析抖音链接会启动浏览器，通常需要几秒到半分钟。</p>
+                <section id="status" class="readout readout--idle" aria-live="polite">
+                  <div class="readout__row">
+                    <div class="readout__state">
+                      <span class="readout__led" aria-hidden="true"></span>
+                      <p id="status-text" class="readout__text">待机</p>
+                    </div>
+                    <span id="status-percent" class="readout__percent">0%</span>
+                  </div>
+                  <div id="progress" class="progress" role="progressbar"
+                    aria-label="下载进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                    <div id="progress-bar" class="progress__bar"></div>
+                    <div class="progress__ticks" aria-hidden="true"></div>
+                  </div>
+                  <div class="readout__foot">
+                    <span id="status-size" class="readout__size">0 B</span>
+                    <span class="readout__channel">MP4</span>
+                  </div>
+                </section>
+              </div>
+            </div>
           </div>
         </section>
       </div>

@@ -8,6 +8,7 @@
   --ink-faint: rgba(28, 26, 22, 0.46);
   --signal: #d2402b;
   --teal: #1f7f7a;
+  --oxide: #2f7166;
   --brass: #a97f45;
   --lcd: #10120e;
   --lcd-line: #2e2b23;
@@ -64,7 +65,7 @@ body::before {
 }
 
 .workbench {
-  width: min(1200px, 100%);
+  width: min(1040px, 100%);
   position: relative;
   z-index: 1;
 }
@@ -74,8 +75,9 @@ body::before {
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 16px;
-  margin-bottom: 18px;
-  padding: 0 2px;
+  margin-bottom: 20px;
+  padding: 0 2px 16px;
+  border-bottom: 1px solid var(--case-edge);
 }
 
 .workbench__meta {
@@ -134,7 +136,7 @@ body::before {
 }
 
 #tool-research.is-active {
-  box-shadow: inset 0 -2px 0 var(--brass);
+  box-shadow: inset 0 -2px 0 var(--oxide);
 }
 
 .tool-switch__button:focus-visible {
@@ -143,7 +145,7 @@ body::before {
 }
 
 #tool-research:focus-visible {
-  outline-color: var(--brass);
+  outline-color: var(--oxide);
 }
 
 .tool-switch__icon {
@@ -192,10 +194,9 @@ body::before {
 }
 
 .desk {
-  width: min(760px, 100%);
+  width: 100%;
   position: relative;
   z-index: 1;
-  margin: 0 auto;
 }
 
 .brand {
@@ -241,7 +242,8 @@ body::before {
 
 .label {
   position: relative;
-  padding: 36px 40px 30px 58px;
+  padding: clamp(30px, 3.6vw, 46px) clamp(24px, 4vw, 52px)
+    clamp(26px, 3vw, 38px) clamp(44px, 4.6vw, 66px);
   background-color: var(--label);
   background-image: repeating-linear-gradient(
     0deg,
@@ -254,7 +256,7 @@ body::before {
 .label::before {
   content: "";
   position: absolute;
-  left: 16px;
+  left: 18px;
   top: 24px;
   bottom: 24px;
   width: 8px;
@@ -263,16 +265,37 @@ body::before {
   background-repeat: repeat-y;
 }
 
+.label__grid {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.78fr) minmax(0, 1.22fr);
+  column-gap: clamp(28px, 5vw, 64px);
+  align-items: start;
+}
+
+.label__side {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(22px, 3vw, 34px);
+  min-width: 0;
+}
+
 .label__head {
-  max-width: 48ch;
-  margin-bottom: 26px;
+  max-width: 34ch;
+}
+
+.label__main {
+  min-width: 0;
+}
+
+.label__aside {
+  max-width: 38ch;
 }
 
 h1 {
   margin: 0 0 10px;
-  font-size: clamp(30px, 4.6vw, 40px);
+  font-size: clamp(32px, 3.7vw, 46px);
   font-weight: 800;
-  line-height: 1.08;
+  line-height: 1.06;
   letter-spacing: -0.035em;
 }
 
@@ -283,9 +306,49 @@ h1 {
   color: var(--ink-muted);
 }
 
+.aside__label {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--ink-muted);
+}
+
+.sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sources li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.sources__mark {
+  width: 9px;
+  height: 9px;
+  flex: none;
+}
+
+.sources__mark--douyin {
+  background: var(--teal);
+}
+
+.sources__mark--xhs {
+  background: var(--signal);
+}
+
 .form {
   display: grid;
-  gap: 14px;
+  gap: 16px;
 }
 
 .field {
@@ -302,7 +365,7 @@ h1 {
 
 textarea {
   width: 100%;
-  min-height: 112px;
+  min-height: 128px;
   resize: none;
   padding: 14px 15px;
   color: var(--ink);
@@ -476,7 +539,7 @@ textarea:focus {
 }
 
 .readout {
-  margin-top: 22px;
+  margin-top: 18px;
   padding: 13px 15px 11px;
   color: var(--lcd-text);
   font-family: var(--mono);
@@ -610,8 +673,8 @@ textarea:focus {
 }
 
 .footnote {
-  margin: 18px 0 0;
-  padding-top: 13px;
+  margin: 16px 0 0;
+  padding-top: 12px;
   border-top: 1px dashed rgba(28, 26, 22, 0.28);
   font-size: 11.5px;
   line-height: 1.7;
@@ -623,7 +686,7 @@ textarea:focus {
   margin: 0;
   padding: 28px 24px;
   color: #9fae9f;
-  background: rgba(20, 36, 31, 0.35);
+  background: var(--case-panel);
   border: 1px dashed var(--case-edge);
   border-radius: 2px;
   font-family: var(--mono);
@@ -639,6 +702,32 @@ textarea:focus {
   border-radius: 2px;
   font-size: 12.5px;
   line-height: 1.7;
+}
+
+@media (max-width: 900px) {
+  .label__grid {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .label__side {
+    display: contents;
+  }
+
+  .label__head {
+    order: 1;
+    max-width: none;
+  }
+
+  .label__main {
+    order: 2;
+  }
+
+  .label__aside {
+    order: 3;
+    max-width: 56ch;
+  }
 }
 
 @media (max-width: 720px) {
@@ -680,17 +769,17 @@ textarea:focus {
   }
 
   .label {
-    padding: 28px 20px 24px 34px;
+    padding: 26px 18px 24px 34px;
   }
 
   .label::before {
-    left: 8px;
+    left: 9px;
     width: 7px;
     background-size: 7px 14px;
   }
 
   h1 {
-    font-size: 29px;
+    font-size: 30px;
   }
 
   .label__intro {

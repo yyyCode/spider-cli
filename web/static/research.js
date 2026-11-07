@@ -622,6 +622,14 @@
       });
     });
 
+    root.querySelectorAll(".sample").forEach((button) => {
+      button.addEventListener("click", () => {
+        activateTab("search", false);
+        ui.queryInput.value = button.dataset.query || "";
+        ui.queryInput.focus();
+      });
+    });
+
     ui.recheckBtn.addEventListener("click", loadStatus);
     ui.clearResults.addEventListener("click", clearResults);
     ui.backBtn.addEventListener("click", goBack);
