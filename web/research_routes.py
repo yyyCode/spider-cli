@@ -1,15 +1,16 @@
 """DeepSeek search and page-fetch routes for the workbench."""
 
 import logging
+import os
 from typing import Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
 from research.client import DeepSeekClient
-from research.config import load_config
+from research.config import load_config, resolve_config_path
 from research.errors import ResearchConfigError, ResearchError
 
 router = APIRouter()
@@ -28,10 +29,49 @@ class FetchRequest(BaseModel):
     url: str
 
 
-def get_client():
-    """Build a client per request so config changes apply without a restart."""
+_client_cache = {"key": None, "client": None}
 
-    return DeepSeekClient(load_config())
+
+def _client_key():
+    """Identify the current config so edits still apply without a restart."""
+
+    path = resolve_config_path()
+    try:
+        stat = path.stat()
+        stamp = (stat.st_mtime_ns, stat.st_size)
+    except OSError:
+        stamp = None
+    return (
+        str(path),
+        stamp,
+        os.environ.get("DEEPSEEK_API_KEY"),
+        os.environ.get("DEEPSEEK_BASE_URL"),
+    )
+
+
+def get_client():
+    """Reuse the client and its connection pool until the config changes."""
+
+    key = _client_key()
+    if _client_cache["key"] != key:
+        _client_cache["client"] = DeepSeekClient(load_config())
+        _client_cache["key"] = key
+    return _client_cache["client"]
+
+
+async def _client_call(fn, *args, label):
+    """Run a blocking client call and map unexpected failures to a 500."""
+
+    try:
+        return await run_in_threadpool(fn, *args)
+    except ResearchError:
+        raise
+    except Exception:
+        logger.exception("DeepSeek %s failed", label)
+        raise HTTPException(
+            status_code=500,
+            detail=f"{label}服务内部错误，请查看服务端日志。",
+        ) from None
 
 
 def _error_response(exc):
@@ -63,36 +103,24 @@ async def research_status():
 async def research_search(payload: SearchRequest):
     try:
         client = get_client()
-        results = await run_in_threadpool(
+        results = await _client_call(
             client.search,
             payload.query,
             payload.count,
             payload.need_content,
             payload.ori_question,
             payload.localization,
+            label="搜索",
         )
         return {"results": results}
     except ResearchError as exc:
         return _error_response(exc)
-    except Exception:
-        logger.exception("DeepSeek search failed")
-        return JSONResponse(
-            {"detail": "搜索服务内部错误，请查看服务端日志。"},
-            status_code=500,
-        )
 
 
 @router.post("/api/research/fetch")
 async def research_fetch(payload: FetchRequest):
     try:
         client = get_client()
-        result = await run_in_threadpool(client.fetch, payload.url)
-        return result
+        return await _client_call(client.fetch, payload.url, label="抓取")
     except ResearchError as exc:
         return _error_response(exc)
-    except Exception:
-        logger.exception("DeepSeek fetch failed")
-        return JSONResponse(
-            {"detail": "抓取服务内部错误，请查看服务端日志。"},
-            status_code=500,
-        )

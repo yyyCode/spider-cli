@@ -50,11 +50,13 @@ def menu_tui(save_dir: str) -> str:
     kb = KeyBindings()
 
     @kb.add("up")
+    @kb.add("k")
     def _up(event):
         state["index"] = max(0, state["index"] - 1)
         event.app.invalidate()
 
     @kb.add("down")
+    @kb.add("j")
     def _down(event):
         state["index"] = min(len(items) - 1, state["index"] + 1)
         event.app.invalidate()
@@ -66,17 +68,6 @@ def menu_tui(save_dir: str) -> str:
     @kb.add("escape")
     def _esc(event):
         event.app.exit(result="quit")
-
-    # 兼容部分终端：j/k 也可上下移动
-    @kb.add("j")
-    def _j(event):
-        state["index"] = min(len(items) - 1, state["index"] + 1)
-        event.app.invalidate()
-
-    @kb.add("k")
-    def _k(event):
-        state["index"] = max(0, state["index"] - 1)
-        event.app.invalidate()
 
     style = Style.from_dict(
         {

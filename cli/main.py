@@ -1,6 +1,9 @@
-from core.douyin_spider import DouyinSpider
+from core.spiders import (
+    SUPPORTED_PLATFORMS,
+    UNSUPPORTED_PLATFORM_MESSAGE,
+    create_spider,
+)
 from core.utils import detect_platform, extract_url_from_text
-from core.xhs_spider import XhsSpider
 
 import os
 import traceback
@@ -86,17 +89,11 @@ def main():
                     continue
 
                 platform = detect_platform(url)
-                if platform == "douyin":
-                    spider = DouyinSpider(url, save_dir=save_dir)
-                elif platform == "xhs":
-                    spider = XhsSpider(
-                        url,
-                        save_dir=save_dir,
-                        cookie=os.environ.get("XHS_COOKIE"),
-                    )
-                else:
-                    print("错误: 仅支持抖音和小红书链接。")
+                if platform not in SUPPORTED_PLATFORMS:
+                    print(f"错误: {UNSUPPORTED_PLATFORM_MESSAGE}。")
                     continue
+
+                spider = create_spider(platform, url, save_dir=save_dir)
 
                 print(f"正在启动爬虫抓取: {url}")
                 spider.run()

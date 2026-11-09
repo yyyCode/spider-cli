@@ -156,22 +156,25 @@
     }
   }
 
-  function setConfigured(configured, message) {
-    state.configured = configured;
+  function setApiState(state, text) {
     ui.apiStatus.classList.remove(
       "api-status--checking",
       "api-status--ready",
       "api-status--missing",
       "api-status--error"
     );
+    ui.apiStatus.classList.add(`api-status--${state}`);
+    ui.apiStatusText.textContent = text;
+  }
+
+  function setConfigured(configured, message) {
+    state.configured = configured;
     if (configured) {
-      ui.apiStatus.classList.add("api-status--ready");
-      ui.apiStatusText.textContent = "API 已就绪";
+      setApiState("ready", "API 已就绪");
       ui.configBanner.hidden = true;
       ui.recheckBtn.hidden = true;
     } else {
-      ui.apiStatus.classList.add("api-status--missing");
-      ui.apiStatusText.textContent = "API 未配置";
+      setApiState("missing", "API 未配置");
       ui.configMessage.textContent = message || "未配置 DeepSeek API Key。";
       ui.configBanner.hidden = false;
       ui.recheckBtn.hidden = false;
@@ -182,13 +185,7 @@
 
   function setApiFailure(message) {
     state.configured = false;
-    ui.apiStatus.classList.remove(
-      "api-status--checking",
-      "api-status--ready",
-      "api-status--missing"
-    );
-    ui.apiStatus.classList.add("api-status--error");
-    ui.apiStatusText.textContent = "无法读取配置";
+    setApiState("error", "无法读取配置");
     ui.configMessage.textContent =
       message || "无法读取服务状态，请确认 Web 服务正在运行。";
     ui.configBanner.hidden = false;
@@ -205,14 +202,24 @@
     }
   }
 
+  async function postJson(path, payload, failureLabel) {
+    const response = await fetch(path, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    const data = await readJson(response);
+    if (!response.ok) {
+      throw new Error(data.detail || `${failureLabel}（${response.status}）`);
+    }
+    return data;
+  }
+
   async function loadStatus() {
-    ui.apiStatus.classList.remove(
-      "api-status--ready",
-      "api-status--missing",
-      "api-status--error"
-    );
-    ui.apiStatus.classList.add("api-status--checking");
-    ui.apiStatusText.textContent = "检查配置…";
+    setApiState("checking", "检查配置…");
     ui.recheckBtn.hidden = true;
 
     try {
@@ -393,18 +400,7 @@
 
     setBusy(true, "search", "正在检索…");
     try {
-      const response = await fetch("/api/research/search", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-      const data = await readJson(response);
-      if (!response.ok) {
-        throw new Error(data.detail || `搜索失败（${response.status}）`);
-      }
+      const data = await postJson("/api/research/search", payload, "搜索失败");
       if (!Array.isArray(data.results)) {
         throw new Error("服务返回了无法识别的搜索结果。");
       }
@@ -425,18 +421,11 @@
 
     setBusy(true, "fetch", "正在抓取…");
     try {
-      const response = await fetch("/api/research/fetch", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({ url: safeUrl }),
-      });
-      const data = await readJson(response);
-      if (!response.ok) {
-        throw new Error(data.detail || `抓取失败（${response.status}）`);
-      }
+      const data = await postJson(
+        "/api/research/fetch",
+        { url: safeUrl },
+        "抓取失败"
+      );
       const content = typeof data.content === "string" ? data.content : "";
       if (!content.trim()) {
         throw new Error(

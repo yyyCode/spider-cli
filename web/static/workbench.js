@@ -7,6 +7,8 @@
   const researchPanel = document.getElementById("panel-research");
   const researchHost = document.getElementById("research-host");
 
+  let researchPrepared = false;
+
   const TITLES = {
     video: "Spider · 视频下载器",
     research: "Spider · 研究台",
@@ -28,6 +30,10 @@
     Object.entries(panels).forEach(([name, panel]) => {
       panel.hidden = name !== tool;
     });
+
+    if (tool === "research") {
+      ensureResearch();
+    }
 
     document.title = TITLES[tool];
 
@@ -83,6 +89,12 @@
       throw new Error(`${url} 返回 HTTP ${response.status}`);
     }
     return response.text();
+  }
+
+  function ensureResearch() {
+    if (researchPrepared) return;
+    researchPrepared = true;
+    prepareResearch();
   }
 
   async function prepareResearch() {
@@ -141,7 +153,6 @@
     if (buttonsValid()) {
       setActive(toolFromHash(), false);
     }
-    prepareResearch();
   }
 
   boot();

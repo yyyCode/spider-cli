@@ -57,15 +57,15 @@ def _loads_tolerant(raw):
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
-        cleaned = re.sub(r"(:\s*)undefined", r"\1null", raw)
-        cleaned = re.sub(r"(\[\s*)undefined", r"\1null", cleaned)
-        cleaned = re.sub(r"(,\s*)undefined", r"\1null", cleaned)
+        cleaned = re.sub(r"([:\[,]\s*)undefined", r"\1null", raw)
         cleaned = re.sub(r"(:\s*)NaN", r"\1null", cleaned)
         return json.loads(cleaned)
 
 
 def _extract_json_after(html, marker):
     """读取 marker 赋值后的第一个 JSON 对象。"""
+    if marker not in html:
+        return None
     match = re.search(re.escape(marker) + r"\s*=\s*", html)
     if match:
         start = html.find("{", match.end())
@@ -221,6 +221,7 @@ def parse_note(note, note_id=""):
 class XhsSpider:
     REQUEST_TIMEOUT = 30
     DOWNLOAD_TIMEOUT = (10, 120)
+    CHUNK_SIZE = 64 * 1024
 
     def __init__(self, url, save_dir="videos", cookie=None, log_callback=None, session=None):
         self.url = url
@@ -319,8 +320,9 @@ class XhsSpider:
 
         success = 0
         failed = 0
+        names = os.listdir(out_dir)
         for index, candidates in enumerate(media.image_urls, start=1):
-            existing = self._find_existing(out_dir, index)
+            existing = self._find_existing(out_dir, index, names)
             if existing:
                 self.log(f"已存在，跳过: 第 {index} 张")
                 success += 1
@@ -329,9 +331,7 @@ class XhsSpider:
             placeholder = os.path.join(out_dir, f"{index:02d}.jpg")
             downloaded = False
             for url in candidates:
-                path = self._download_file(
-                    url, placeholder, expect="image", return_path=True
-                )
+                path = self._download_file(url, placeholder, expect="image")
                 if path:
                     self.log(f"下载完成: {path}")
                     success += 1
@@ -349,9 +349,9 @@ class XhsSpider:
         return os.path.isfile(path) and os.path.getsize(path) > 0
 
     @staticmethod
-    def _find_existing(out_dir, index):
+    def _find_existing(out_dir, index, names=None):
         prefix = f"{index:02d}."
-        for name in os.listdir(out_dir):
+        for name in names if names is not None else os.listdir(out_dir):
             if name.startswith(prefix):
                 path = os.path.join(out_dir, name)
                 if os.path.isfile(path) and os.path.getsize(path) > 0:
@@ -364,8 +364,7 @@ class XhsSpider:
         extension = os.path.splitext(path)[1]
         return extension if extension in IMAGE_EXTENSIONS else ""
 
-    def _download_file(self, url, path, expect, return_path=False):
-        failure = None if return_path else False
+    def _download_file(self, url, path, expect):
         temp_path = path + ".part"
         try:
             with self.session.get(
@@ -376,7 +375,7 @@ class XhsSpider:
             ) as response:
                 if response.status_code != 200:
                     self.log(f"下载失败 {response.status_code}: {url[:80]}")
-                    return failure
+                    return None
 
                 content_type = (
                     response.headers.get("content-type") or ""
@@ -388,16 +387,16 @@ class XhsSpider:
                 )
                 if content_type and content_type != "application/octet-stream" and not allowed:
                     self.log(f"跳过非{expect}响应 ({content_type}): {url[:80]}")
-                    return failure
+                    return None
 
                 with open(temp_path, "wb") as handle:
-                    for chunk in response.iter_content(chunk_size=8192):
+                    for chunk in response.iter_content(chunk_size=self.CHUNK_SIZE):
                         if chunk:
                             handle.write(chunk)
 
             if os.path.getsize(temp_path) == 0:
                 os.remove(temp_path)
-                return failure
+                return None
 
             final_path = path
             if expect == "image":
@@ -407,7 +406,7 @@ class XhsSpider:
                 final_path = os.path.splitext(path)[0] + extension
 
             os.replace(temp_path, final_path)
-            return final_path if return_path else True
+            return final_path
         except (requests.RequestException, OSError) as exc:
             self.log(f"下载出错: {exc}")
             if os.path.exists(temp_path):
@@ -415,7 +414,7 @@ class XhsSpider:
                     os.remove(temp_path)
                 except OSError:
                     pass
-            return failure
+            return None
 
 
 if __name__ == "__main__":
