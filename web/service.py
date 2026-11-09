@@ -6,9 +6,12 @@ import tempfile
 import time
 from dataclasses import dataclass
 
-from core.douyin_spider import DouyinSpider
+from core.spiders import (
+    SUPPORTED_PLATFORMS,
+    UNSUPPORTED_PLATFORM_MESSAGE,
+    create_spider,
+)
 from core.utils import detect_platform, extract_url_from_text
-from core.xhs_spider import XhsSpider
 
 
 class WebDownloadError(Exception):
@@ -25,25 +28,13 @@ class DownloadedFile:
     temp_dir: str
 
 
-def create_spider(platform, url, save_dir, log_callback):
-    """按平台创建爬虫；单独抽出便于测试替换。"""
-    if platform == "douyin":
-        return DouyinSpider(url, save_dir=save_dir, log_callback=log_callback)
-    return XhsSpider(
-        url,
-        save_dir=save_dir,
-        cookie=os.environ.get("XHS_COOKIE"),
-        log_callback=log_callback,
-    )
-
-
 def _resolve_input(raw_url):
     url = extract_url_from_text((raw_url or "").strip())
     if not url:
         raise WebDownloadError("未识别到有效链接，请粘贴完整的分享口令或 URL", 400)
     platform = detect_platform(url)
-    if platform not in {"douyin", "xhs"}:
-        raise WebDownloadError("仅支持抖音和小红书链接", 400)
+    if platform not in SUPPORTED_PLATFORMS:
+        raise WebDownloadError(UNSUPPORTED_PLATFORM_MESSAGE, 400)
     return url, platform
 
 

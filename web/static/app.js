@@ -171,25 +171,28 @@ async function download(rawUrl) {
     setProgress(0);
     statusSize.textContent = "0 B";
     showStatus("processing", "正在接收视频…", total ? "0%" : "…");
+    if (!total) setIndeterminate(true);
 
     const reader = response.body.getReader();
     const chunks = [];
     let received = 0;
+    let lastRender = 0;
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       chunks.push(value);
       received += value.length;
+
+      const now = performance.now();
+      if (now - lastRender < 120) continue;
+      lastRender = now;
       statusSize.textContent = formatSize(received);
 
       if (total) {
         const percent = Math.min(100, Math.round((received / total) * 100));
         setProgress(percent);
         showStatus("processing", "正在接收视频…", `${percent}%`);
-      } else {
-        setIndeterminate(true);
-        showStatus("processing", "正在接收视频…", "…");
       }
     }
 
